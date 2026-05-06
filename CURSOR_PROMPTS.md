@@ -1,603 +1,1343 @@
-# 🎯 Cursor Prompts — Music DNA Analyzer
-**Use these 6 prompts in order. Each one builds on the previous.**  
-**Before starting:** Upload `REQUIREMENTS.md` to Cursor context. Run setup commands below first.
+# 🎯 Claude Code Prompts — Music DNA Analyzer
+# 12 Feature Prompts · 4 Sessions · Production Grade
+#
+# HOW TO USE:
+# - Start each prompt with: "Read REQUIREMENTS.md first, then do the following:"
+# - Complete all prompts in a session before starting a new session
+# - After each prompt: test in browser → git commit → next prompt
+# - After each session: git push → open fresh claude session
+#
+# COMMIT AFTER EVERY PROMPT:
+# git add . && git commit -m "feat: [prompt name]"
 
----
+═══════════════════════════════════════════════════════════════
+SESSION 1 — Foundation & Auth (Prompts 1, 2, 3)
+Start: claude (in project root)
+End:   OAuth works end-to-end, homepage live
+═══════════════════════════════════════════════════════════════
 
-## ⚡ One-time Setup (run these manually before Prompt 1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 1 — Project Setup & Environment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-```bash
-# 1. Install dependencies
-pnpm install
+Read REQUIREMENTS.md first, then do the following:
 
-# 2. Start Supabase locally
-supabase start
-# Copy the printed keys into .env.local
+I'm building a Music DNA Personality Analyzer on top of this Next.js 16 + TypeScript +
+Tailwind + Supabase starter template. The full spec is in REQUIREMENTS.md.
 
-# 3. Add these to .env.local
-# NEXT_PUBLIC_SPOTIFY_CLIENT_ID=your_client_id
-# NEXT_PUBLIC_SPOTIFY_REDIRECT_URI=http://localhost:3000/spotify/callback
+Do ALL of the following setup tasks:
 
-# 4. Add new packages
-pnpm add recharts html2canvas
-pnpm add -D @types/html2canvas
+1. UPDATE package.json — add these dependencies:
+   "recharts": "^2.12.0"
+   "html2canvas": "^1.4.1"
+   Do NOT run install — just update the file.
 
-# 5. Start the dev server
-pnpm dev
-```
+2. UPDATE .env.example — add Spotify variables below the existing Supabase vars:
+   # Spotify — create app at https://developer.spotify.com/dashboard
+   # Add Redirect URI: http://localhost:3000/spotify/callback
+   NEXT_PUBLIC_SPOTIFY_CLIENT_ID="your-spotify-client-id"
+   NEXT_PUBLIC_SPOTIFY_REDIRECT_URI="http://localhost:3000/spotify/callback"
 
----
+3. CREATE lib/spotify/constants.ts — export these constants:
+   export const SPOTIFY_API_BASE = 'https://api.spotify.com/v1'
+   export const SPOTIFY_AUTH_URL = 'https://accounts.spotify.com/authorize'
+   export const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token'
+   export const SPOTIFY_SCOPES = 'user-top-read user-read-recently-played user-read-private'
+   export const SESSION_KEYS = {
+     ACCESS_TOKEN: 'spotify_access_token',
+     EXPIRES_AT: 'spotify_expires_at',
+     CODE_VERIFIER: 'spotify_code_verifier',
+     OAUTH_STATE: 'spotify_oauth_state',
+   } as const
 
-## PROMPT 1 — Spotify Auth + Homepage
+4. CREATE lib/spotify/errors.ts — define typed error classes:
+   export class AuthError extends Error {
+     constructor(message: string) { super(message); this.name = 'AuthError' }
+   }
+   export class SpotifyAPIError extends Error {
+     status: number
+     constructor(message: string, status: number) {
+       super(message); this.name = 'SpotifyAPIError'; this.status = status
+     }
+   }
+   export class TokenExpiredError extends AuthError {
+     constructor() { super('Spotify token has expired') ; this.name = 'TokenExpiredError' }
+   }
 
-> Paste this entire block as your first message in Cursor with REQUIREMENTS.md attached.
+5. CREATE supabase/migrations/20260506_create_spotify_profiles.sql
+   Use the exact SQL from Section 5.3 of REQUIREMENTS.md.
+   Include: CREATE TABLE, UNIQUE(user_id), RLS enable, all 3 policies.
 
-```
-I'm building a Music DNA Personality Analyzer app based on the attached REQUIREMENTS.md.
-This is a Next.js 16 + TypeScript + Tailwind + Supabase starter template.
+6. UPDATE next.config.ts — add this to allow Spotify image domains:
+   images: { remotePatterns: [{ protocol: 'https', hostname: 'i.scdn.co' }] }
 
-Complete ALL of the following in one go:
+Zero TypeScript errors. Confirm each file created/updated with ✓
 
-─── TASK 1: lib/spotify/auth.ts ───────────────────────────────────────────
-Create this file implementing full Spotify OAuth 2.0 PKCE. Export these functions:
 
-  generateCodeVerifier(): string
-    → 96 random bytes via crypto.getRandomValues, base64url encoded, trimmed to 128 chars
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 2 — Spotify OAuth PKCE Authentication
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  generateCodeChallenge(verifier: string): Promise<string>
-    → SHA-256 hash of verifier via Web Crypto API, base64url encoded
+Read REQUIREMENTS.md first, then do the following:
 
-  generateState(): string
-    → 16 random bytes, hex encoded
+Prompt 1 is done. Now build the complete Spotify OAuth PKCE authentication system.
 
-  buildSpotifyAuthUrl(clientId: string, redirectUri: string): string
-    → stores verifier + state in sessionStorage
-    → returns full https://accounts.spotify.com/authorize URL with params:
-       client_id, response_type=code, redirect_uri, code_challenge_method=S256,
-       code_challenge, state, scope="user-top-read user-read-recently-played user-read-private"
+CREATE lib/spotify/auth.ts
 
-  exchangeCodeForToken(code: string, clientId: string, redirectUri: string): Promise<SpotifyTokenResponse>
-    → reads verifier from sessionStorage
-    → asserts verifier exists (throws if not)
-    → POSTs to https://accounts.spotify.com/api/token
-    → clears verifier + state from sessionStorage after exchange
-    → returns { access_token, token_type, expires_in, scope }
+This file must export the following — all TypeScript strict, zero 'any':
 
-  saveTokenToSession(token: SpotifyTokenResponse): void
-    → saves access_token and expiry timestamp (Date.now() + expires_in * 1000) to sessionStorage
+--- Types ---
+export interface SpotifyTokenResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+  scope: string
+}
 
-  getStoredToken(): { token: string; expiresAt: number } | null
-    → reads from sessionStorage, returns null if missing
+export interface StoredToken {
+  token: string
+  expiresAt: number
+}
 
-  isTokenExpired(): boolean
-    → returns true if no token or expiresAt < Date.now()
+--- PKCE Helpers ---
+export async function generateCodeVerifier(): Promise<string>
+  Use crypto.getRandomValues(new Uint8Array(96))
+  btoa → replace +→- /→_ =→'' → slice to 128 chars
 
-Export interface SpotifyTokenResponse { access_token: string; token_type: string; expires_in: number; scope: string }
+export async function generateCodeChallenge(verifier: string): Promise<string>
+  TextEncoder → encode verifier → crypto.subtle.digest('SHA-256')
+  → Uint8Array → btoa → replace +→- /→_ =→''
 
-Zero 'any' types. All errors thrown as typed Error with descriptive message.
+export function generateState(): string
+  crypto.getRandomValues(new Uint8Array(16))
+  → Array.from → map to hex → join('')
 
-─── TASK 2: app/spotify/callback/page.tsx ─────────────────────────────────
-'use client' — this page handles the OAuth redirect.
+--- Auth Flow ---
+export async function initiateSpotifyAuth(): Promise<void>
+  1. Generate verifier, challenge, state (await the async ones)
+  2. Store verifier in sessionStorage[SESSION_KEYS.CODE_VERIFIER]
+  3. Store state in sessionStorage[SESSION_KEYS.OAUTH_STATE]
+  4. Build URL: new URL(SPOTIFY_AUTH_URL)
+     params: client_id (from env), response_type='code', redirect_uri (from env),
+     code_challenge_method='S256', code_challenge, state, scope=SPOTIFY_SCOPES
+  5. window.location.href = url.toString()
 
-On mount (useEffect):
-  1. Read ?code and ?state from useSearchParams()
-  2. Read stored state from sessionStorage
-  3. If state mismatch or missing → toast.error("Authentication failed") → router.push("/")
-  4. If no code → toast.error("No authorization code") → router.push("/")
-  5. Call exchangeCodeForToken(code, clientId, redirectUri)
-     - clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!
-     - redirectUri = process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI!
-  6. Call saveTokenToSession(token)
-  7. router.push("/results")
-  8. On any catch → toast.error("Failed to connect Spotify") → router.push("/")
+export async function exchangeCodeForToken(
+  code: string,
+  receivedState: string
+): Promise<SpotifyTokenResponse>
+  1. Read storedState from sessionStorage[SESSION_KEYS.OAUTH_STATE]
+  2. If storedState !== receivedState → throw new AuthError('State mismatch — possible CSRF')
+  3. Read verifier from sessionStorage[SESSION_KEYS.CODE_VERIFIER]
+  4. If !verifier → throw new AuthError('Code verifier missing')
+  5. POST to SPOTIFY_TOKEN_URL with URLSearchParams body:
+     grant_type='authorization_code', code, redirect_uri (from env),
+     client_id (from env), code_verifier=verifier
+  6. If !response.ok → throw new SpotifyAPIError(await res.text(), res.status)
+  7. Clear verifier + state from sessionStorage
+  8. Return parsed JSON as SpotifyTokenResponse
 
-UI: full-screen flex-center dark background, animated spinner (use Lucide Loader2 with animate-spin),
-text "Connecting to Spotify…" in muted colour below spinner.
+--- Token Storage ---
+export function saveToken(tokenResponse: SpotifyTokenResponse): void
+  sessionStorage.setItem(SESSION_KEYS.ACCESS_TOKEN, tokenResponse.access_token)
+  sessionStorage.setItem(
+    SESSION_KEYS.EXPIRES_AT,
+    String(Date.now() + tokenResponse.expires_in * 1000)
+  )
 
-─── TASK 3: app/page.tsx (replace existing) ───────────────────────────────
-Replace the current generic hero with a Spotify-themed version. Keep the existing Navigation
-and Footer imports. New content:
+export function getStoredToken(): StoredToken | null
+  Read both keys. If either missing → return null
+  Return { token, expiresAt: Number(expiresAt) }
 
-Hero section (min-h-[85vh] flex items-center, dark bg):
-  - Small pill badge: "🎵 Music Personality Analyzer"
-  - H1: "Discover Your Music DNA" (large, bold, white)
-  - Subtitle: "Connect your Spotify and find out what your listening habits say about
-    you — your archetype, mood spectrum, and a shareable personality card."
-  - One big CTA button: "Connect Spotify — It's Free" (Spotify green #1DB954, onClick calls
-    buildSpotifyAuthUrl then window.location.href = url)
-  - Small note below: "No account needed · We never store your Spotify password"
+export function isTokenValid(): boolean
+  const stored = getStoredToken()
+  if (!stored) return false
+  return stored.expiresAt > Date.now() + 60_000  ← 60s buffer
 
-Sample Archetypes section below fold (3 cards in a responsive grid):
-  Show 3 hardcoded preview cards for: ⚡ Energy Addict, 🌙 Midnight Drifter, 🚀 Tastemaker
-  Each card: dark bg #111111, border #222222, emoji large, name bold, tagline in muted italic.
-  Cards are visual only — not clickable.
+export function clearToken(): void
+  Remove all 4 SESSION_KEYS from sessionStorage
 
-All code must be TypeScript strict, no 'any'. Use the sonner toast from the template.
-When done, confirm: lib/spotify/auth.ts ✓, app/spotify/callback/page.tsx ✓, app/page.tsx ✓
-```
+Import SESSION_KEYS, SPOTIFY_AUTH_URL, SPOTIFY_TOKEN_URL, SPOTIFY_SCOPES from ./constants
+Import AuthError, SpotifyAPIError from ./errors
 
----
+After creating the file, confirm: lib/spotify/auth.ts ✓
 
-## PROMPT 2 — Spotify API Layer + Personality Algorithm
 
-> Wait for Prompt 1 to finish and verify the homepage loads. Then paste this.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 3 — Homepage Redesign + OAuth Callback Page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-```
-REQUIREMENTS.md is attached. Continuing the Music DNA app build.
+Read REQUIREMENTS.md first, then do the following:
 
-Prompt 1 is done: auth.ts, callback page, and homepage exist.
-Now build the data layer and core algorithm.
+Prompts 1–2 done. Auth system is built. Now create the UI entry points.
 
-─── TASK 1: lib/spotify/api.ts ────────────────────────────────────────────
-Create all Spotify REST call functions and TypeScript interfaces.
+--- TASK A: UPDATE app/page.tsx (full replacement) ---
 
-Interfaces to export (match Section 5.1 of REQUIREMENTS.md exactly):
-  SpotifyTrack, SpotifyArtist, AudioFeatures, SpotifyUser
+Keep the existing Navigation import. Replace everything inside the return with:
 
-Custom error classes to export:
-  class AuthError extends Error { constructor(msg: string) { super(msg); this.name = 'AuthError' } }
-  class SpotifyAPIError extends Error { status: number; constructor(msg: string, status: number) {...} }
+Section 1 — Hero (min-h-[88vh] flex items-center, bg #0a0a0a):
+  - Animated background: subtle radial gradient from #1DB95408 to transparent
+  - Top pill badge: "🎵 Music Personality Analyzer" — green border, green text, rounded-full
+  - H1 (text-6xl font-black tracking-tight):
+    "Discover Your" on line 1
+    "Music DNA" on line 2 — "DNA" in Spotify green #1DB954
+  - Subtitle (text-xl text-[#A0A0A0] max-w-xl):
+    "Connect Spotify and find out what your listening habits say about you.
+     Your archetype, mood spectrum, genre fingerprint — and a card worth sharing."
+  - CTA button (onClick → calls initiateSpotifyAuth() from lib/spotify/auth):
+    Large green button, "Connect Spotify — It's Free", Spotify icon (use Music icon from lucide)
+    Disable + show Loader2 spinner while initiating (isLoading state)
+  - Trust line below button: "No account needed · Read-only Spotify access · Data never stored"
+    Small, muted, flex row with Shield icon
 
-Helper (not exported):
-  async function spotifyFetch<T>(url: string, token: string): Promise<T>
-    → fetch with Authorization: Bearer header
-    → throw AuthError if status === 401
-    → throw SpotifyAPIError(await res.text(), res.status) for any other non-ok status
+Section 2 — Sample Archetype Cards (py-24, bg #080808):
+  Heading: "What's your archetype?" (text-3xl font-bold, centered)
+  Sub: "8 personality types based on how you actually listen" (muted, centered)
+  Grid of 4 static preview cards (2×2 on mobile, 4×1 on desktop):
+    ⚡ Energy Addict — "You don't listen to music. You survive on it." — border #FF413640
+    🌙 Midnight Drifter — "Your best playlists only make sense at 2am." — border #4A4E8C40
+    🚀 Tastemaker — "You had them on rotation before they had fans." — border #1DB95440
+    💔 Emotional Archaeologist — "You don't skip the sad songs. You study them." — border #3498DB40
+  Each card: dark bg, colored left border (4px), emoji 32px, name bold white, tagline muted italic
+  Bottom of each card: a "VIEW ARCHETYPE" ghost label — purely decorative, not clickable
 
-Functions to export:
-  fetchUserProfile(token: string): Promise<SpotifyUser>
-    → GET https://api.spotify.com/v1/me
+Section 3 — How It Works (py-20, bg #0a0a0a):
+  3 steps in a horizontal row:
+    1. "Connect" — plug icon — "One click Spotify login. Read-only access."
+    2. "Analyze" — bar chart icon — "We analyze your top tracks, artists, and audio features."
+    3. "Share" — share icon — "Get your archetype card. Download and share it."
 
-  fetchTopTracks(token: string, timeRange: 'short_term' | 'medium_term' | 'long_term'): Promise<SpotifyTrack[]>
-    → GET https://api.spotify.com/v1/me/top/tracks?limit=50&time_range={timeRange}
-    → return response.items
+Keep existing Footer.
 
-  fetchTopArtists(token: string): Promise<SpotifyArtist[]>
-    → GET https://api.spotify.com/v1/me/top/artists?limit=50&time_range=medium_term
-    → return response.items
+--- TASK B: CREATE app/spotify/callback/page.tsx ---
 
-  fetchAudioFeatures(token: string, trackIds: string[]): Promise<AudioFeatures[]>
-    → Chunk trackIds into arrays of 100
-    → For each chunk: GET https://api.spotify.com/v1/audio-features?ids={chunk.join(',')}
-    → Flatten all chunks into one array
-    → Filter out any null values (Spotify returns null for local files/podcasts)
-    → Return AudioFeatures[]
+'use client' — Suspense boundary required for useSearchParams.
 
-  deduplicateTracksByID(tracks: SpotifyTrack[][]): SpotifyTrack[]
-    → Flatten all arrays, use Map keyed by track.id to deduplicate
-    → Return deduplicated SpotifyTrack[]
+Wrap the inner component in <Suspense fallback={<LoadingSpinner />}>
 
-─── TASK 2: lib/spotify/personality.ts ────────────────────────────────────
-Create the personality algorithm. This file has two parts: data and logic.
+Inner component logic (useEffect on mount):
+  1. const code = searchParams.get('code')
+  2. const state = searchParams.get('state')
+  3. const error = searchParams.get('error')
+  4. If error param exists → toast.error(`Spotify error: ${error}`) → router.push('/')
+  5. If !code || !state → toast.error('Missing auth params') → router.push('/')
+  6. Try:
+       const tokenResponse = await exchangeCodeForToken(code, state)
+       saveToken(tokenResponse)
+       router.push('/results')
+  7. Catch AuthError → toast.error(err.message) → router.push('/')
+  8. Catch any → toast.error('Connection failed. Please try again.') → router.push('/')
 
-PART A — ARCHETYPE_DATA: const ARCHETYPE_DATA: Record<ArchetypeId, ArchetypeInfo>
-Populate all 8 archetypes using exact IDs, names, emojis, taglines, and colors from
-Section 7.4 of REQUIREMENTS.md. Write a 2–3 sentence `description` for each that expands
-on the tagline with personality insight.
+UI: full screen, bg #0a0a0a, flex center column
+  - Animated Loader2 (lucide) 48px, text-[#1DB954], animate-spin
+  - Text: "Connecting to Spotify…" (text-xl text-white mt-4)
+  - Sub: "Hang tight, this only takes a second" (text-[#666] mt-2)
 
-PART B — WEIGHTS: const ARCHETYPE_WEIGHTS: Record<ArchetypeId, Partial<DimensionWeights>>
-Use the exact weight matrix from Section 7.2 of REQUIREMENTS.md.
-DimensionWeights = { energy: number; mood: number; danceability: number; acousticness: number; obscurity: number; diversity: number; moodVariance: number }
+Zero 'any'. Import from lib/spotify/auth and lib/spotify/errors.
+Confirm: app/page.tsx ✓, app/spotify/callback/page.tsx ✓
 
-PART C — ALGORITHM: export function analyzePersonality(tracks, artists, features): PersonalityResult
+# git add . && git commit -m "feat: session 1 complete — auth + homepage + callback"
+# git push
+# Then open a FRESH claude session for Session 2
 
-Implement exactly as per Section 7.1 and 7.3 of REQUIREMENTS.md:
-1. Compute 7 dimension scores (mean/stdDev helper functions, moodVariance clamped to [0,1] by dividing by 0.5)
-2. Score all 8 archetypes via weighted dot product
-3. Normalize scores to 0–100 using min-shift + max-scale formula from Section 7.3
-4. Sort descending → primary = index 0, alterEgo = index 1
-5. Extract top genres: flatten artist.genres[], count frequency, sort desc, slice top 6
-6. Build genreBreakdown array
-7. Generate listeningSummary: 2-sentence string based on top dimension values
-   (e.g. high energy + low mood → "You use music as armour, not comfort. Your playlists hit hardest when the world feels quietest.")
-   Write at least 3 variants per archetype, select based on the spread of dimension scores.
-8. Return full PersonalityResult (Section 5.2 of REQUIREMENTS.md)
 
-Export: ArchetypeId, ArchetypeInfo, DimensionScores, PersonalityResult types
-Export: ARCHETYPE_DATA (for use in UI components)
-Export: analyzePersonality function
+═══════════════════════════════════════════════════════════════
+SESSION 2 — Data Layer & Algorithm (Prompts 4, 5, 6)
+Start: fresh claude session
+End:   Spotify data flows, personality algorithm runs
+═══════════════════════════════════════════════════════════════
 
-Zero 'any'. All helpers (mean, stdDev) as pure functions at top of file.
-When done, confirm: lib/spotify/api.ts ✓, lib/spotify/personality.ts ✓
-```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 4 — Spotify API Layer (Types + All Endpoints)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
----
+Read REQUIREMENTS.md first, then do the following:
 
-## PROMPT 3 — Data Hook + Supabase Migration
+Session 1 complete. Auth, homepage, callback all working.
+Now build the full Spotify data fetching layer.
 
-> Wait for Prompt 2 to finish. Then paste this.
+CREATE lib/spotify/types.ts
 
-```
-REQUIREMENTS.md is attached. Continuing the Music DNA app build.
+Export ALL TypeScript interfaces from Section 5.1 of REQUIREMENTS.md:
+SpotifyTrack, SpotifyArtist, AudioFeatures, SpotifyUser
 
-Prompts 1 and 2 done: auth, callback, homepage, API layer, algorithm all exist.
-Now build the data hook and Supabase migration.
+Also export these API response wrappers:
+  interface SpotifyTopTracksResponse { items: SpotifyTrack[] }
+  interface SpotifyTopArtistsResponse { items: SpotifyArtist[] }
+  interface SpotifyAudioFeaturesResponse { audio_features: (AudioFeatures | null)[] }
 
-─── TASK 1: hooks/use-spotify-data.ts ─────────────────────────────────────
-Create a custom hook that orchestrates all data fetching and returns a result.
+CREATE lib/spotify/api.ts
 
-export function useSpotifyData(): {
+Import: SPOTIFY_API_BASE from ./constants
+Import: AuthError, SpotifyAPIError, TokenExpiredError from ./errors
+Import all types from ./types
+
+--- Core fetch helper (not exported) ---
+async function spotifyFetch<T>(endpoint: string, token: string): Promise<T>
+  const url = endpoint.startsWith('http') ? endpoint : `${SPOTIFY_API_BASE}${endpoint}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (res.status === 401) throw new TokenExpiredError()
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After') ?? '3'
+    throw new SpotifyAPIError(`Rate limited. Retry after ${retryAfter}s`, 429)
+  }
+  if (!res.ok) throw new SpotifyAPIError(`Spotify API error: ${res.statusText}`, res.status)
+  return res.json() as Promise<T>
+
+--- Exported functions ---
+
+export async function fetchUserProfile(token: string): Promise<SpotifyUser>
+  → spotifyFetch<SpotifyUser>('/me', token)
+
+export async function fetchTopTracks(
+  token: string,
+  timeRange: 'short_term' | 'medium_term' | 'long_term'
+): Promise<SpotifyTrack[]>
+  → const data = await spotifyFetch<SpotifyTopTracksResponse>(
+      `/me/top/tracks?limit=50&time_range=${timeRange}`, token
+    )
+  → return data.items
+
+export async function fetchTopArtists(token: string): Promise<SpotifyArtist[]>
+  → const data = await spotifyFetch<SpotifyTopArtistsResponse>(
+      '/me/top/artists?limit=50&time_range=medium_term', token
+    )
+  → return data.items
+
+export async function fetchAudioFeatures(
+  token: string,
+  trackIds: string[]
+): Promise<AudioFeatures[]>
+  Chunk trackIds into arrays of 100:
+    const chunks = []
+    for (let i = 0; i < trackIds.length; i += 100) {
+      chunks.push(trackIds.slice(i, i + 100))
+    }
+  Fetch all chunks in parallel with Promise.all:
+    const results = await Promise.all(
+      chunks.map(chunk =>
+        spotifyFetch<SpotifyAudioFeaturesResponse>(
+          `/audio-features?ids=${chunk.join(',')}`, token
+        )
+      )
+    )
+  Flatten + filter nulls:
+    return results.flatMap(r => r.audio_features).filter((f): f is AudioFeatures => f !== null)
+
+export function deduplicateTracksByID(trackArrays: SpotifyTrack[][]): SpotifyTrack[]
+  const map = new Map<string, SpotifyTrack>()
+  trackArrays.flat().forEach(track => { if (!map.has(track.id)) map.set(track.id, track) })
+  return Array.from(map.values())
+
+export async function fetchAllSpotifyData(token: string): Promise<{
+  tracks: SpotifyTrack[]
+  artists: SpotifyArtist[]
+  audioFeatures: AudioFeatures[]
+  user: SpotifyUser
+}>
+  Run in parallel:
+    const [shortTerm, mediumTerm, longTerm, artists, user] = await Promise.all([
+      fetchTopTracks(token, 'short_term'),
+      fetchTopTracks(token, 'medium_term'),
+      fetchTopTracks(token, 'long_term'),
+      fetchTopArtists(token),
+      fetchUserProfile(token),
+    ])
+  const tracks = deduplicateTracksByID([shortTerm, mediumTerm, longTerm])
+  const trackIds = tracks.map(t => t.id)
+  const audioFeatures = await fetchAudioFeatures(token, trackIds)
+  return { tracks, artists, audioFeatures, user }
+
+Zero 'any'. All functions async with proper return types.
+Confirm: lib/spotify/types.ts ✓, lib/spotify/api.ts ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 5 — Personality Algorithm & Archetype Data
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Prompt 4 done. API layer complete.
+Now build the personality algorithm — the core differentiator of this app.
+
+CREATE lib/spotify/personality.ts
+
+--- Section A: Types (export all) ---
+
+export type ArchetypeId =
+  | 'energy_addict' | 'midnight_drifter' | 'mood_chameleon' | 'tastemaker'
+  | 'emotional_archaeologist' | 'hype_beast' | 'zen_curator' | 'culture_vulture'
+
+export interface ArchetypeInfo {
+  id: ArchetypeId
+  name: string
+  emoji: string
+  tagline: string
+  description: string   // 2–3 sentences expanding the tagline
+  color: string         // hex
+}
+
+export interface DimensionScores {
+  energy: number; mood: number; danceability: number; acousticness: number
+  obscurity: number; diversity: number; moodVariance: number
+}
+
+export interface PersonalityResult {
+  archetype: ArchetypeInfo
+  alterEgo: ArchetypeInfo
+  archetypeScores: Record<ArchetypeId, number>
+  dimensions: DimensionScores
+  topGenres: string[]
+  genreBreakdown: Array<{ name: string; count: number }>
+  listeningSummary: string
+  topTracks: SpotifyTrack[]
+  topArtists: SpotifyArtist[]
+  spotifyUser: SpotifyUser
+}
+
+--- Section B: Pure math helpers (not exported) ---
+
+function mean(values: number[]): number
+  if (values.length === 0) return 0
+  return values.reduce((a, b) => a + b, 0) / values.length
+
+function stdDev(values: number[]): number
+  if (values.length === 0) return 0
+  const avg = mean(values)
+  return Math.sqrt(mean(values.map(v => Math.pow(v - avg, 2))))
+
+function clamp(value: number, min: number, max: number): number
+  return Math.max(min, Math.min(max, value))
+
+--- Section C: ARCHETYPE_DATA (export) ---
+
+export const ARCHETYPE_DATA: Record<ArchetypeId, ArchetypeInfo> = {
+  energy_addict: {
+    id: 'energy_addict', name: 'Energy Addict', emoji: '⚡',
+    tagline: "You don't listen to music. You survive on it.",
+    description: "Music isn't background noise for you — it's rocket fuel. You gravitates toward tracks that hit hard, move fast, and demand full attention. If the drop doesn't slap, you've already skipped it.",
+    color: '#FF4136'
+  },
+  midnight_drifter: {
+    id: 'midnight_drifter', name: 'Midnight Drifter', emoji: '🌙',
+    tagline: "Your best playlists only make sense at 2am.",
+    description: "You find music that most people walk right past. Your taste lives in the quiet hours — textured, atmospheric, and deeply felt. You listen like it matters, because for you, it does.",
+    color: '#4A4E8C'
+  },
+  mood_chameleon: {
+    id: 'mood_chameleon', name: 'Mood Chameleon', emoji: '🎭',
+    tagline: "Your playlist is a mood board. No one can predict you.",
+    description: "You swing from euphoric to melancholic and back again without warning. Your listening history reads like a novel with unexpected plot twists. Consistent? Never. Interesting? Always.",
+    color: '#9B59B6'
+  },
+  tastemaker: {
+    id: 'tastemaker', name: 'Tastemaker', emoji: '🚀',
+    tagline: "You had them on rotation before they had fans.",
+    description: "You don't follow trends — you set them. Your library is full of artists most people haven't heard of yet. When they blow up, you'll nod quietly and move on to the next one.",
+    color: '#1DB954'
+  },
+  emotional_archaeologist: {
+    id: 'emotional_archaeologist', name: 'Emotional Archaeologist', emoji: '💔',
+    tagline: "You don't skip the sad songs. You study them.",
+    description: "You use music to process, not escape. Heavy lyrics and sparse arrangements are your comfort zone. Other people find your playlists intense — you call them honest.",
+    color: '#3498DB'
+  },
+  hype_beast: {
+    id: 'hype_beast', name: 'Hype Beast', emoji: '🔥',
+    tagline: "Your queue is a pre-game. Every. Single. Day.",
+    description: "Life is a main stage and you're always about to walk out. Your music is high-energy, chart-aware, and built to move. You know every drop before it lands.",
+    color: '#FF6B35'
+  },
+  zen_curator: {
+    id: 'zen_curator', name: 'Zen Curator', emoji: '🧘',
+    tagline: "Your music breathes. So do you.",
+    description: "You curate with intention. Every track earns its place — nothing jarring, nothing rushed. Your playlists feel like spaces people want to live inside.",
+    color: '#1ABC9C'
+  },
+  culture_vulture: {
+    id: 'culture_vulture', name: 'Culture Vulture', emoji: '🌍',
+    tagline: "Your algorithm doesn't know what to make of you.",
+    description: "Genre is a cage and you refuse to stay in one. Your listening spans continents, languages, and decades. You treat music like an anthropologist treats cultures — with curiosity and deep respect.",
+    color: '#F39C12'
+  }
+}
+
+--- Section D: ARCHETYPE_WEIGHTS (not exported) ---
+
+Use the EXACT weight matrix from Section 7.2 of REQUIREMENTS.md.
+Type: Record<ArchetypeId, Partial<Record<keyof DimensionScores, number>>>
+
+--- Section E: analyzePersonality (export) ---
+
+export function analyzePersonality(
+  tracks: SpotifyTrack[],
+  artists: SpotifyArtist[],
+  audioFeatures: AudioFeatures[]
+): PersonalityResult
+
+STEP 1 — Guard against empty data:
+  if audioFeatures.length === 0 → return a default result with archetype = zen_curator,
+  all dimension scores = 0.5, topGenres = [], empty arrays, listeningSummary = "Not enough data yet."
+
+STEP 2 — Compute dimensions (Section 7.1 formulas):
+  energy        = mean(audioFeatures.map(f => f.energy))
+  mood          = mean(audioFeatures.map(f => f.valence))
+  danceability  = mean(audioFeatures.map(f => f.danceability))
+  acousticness  = mean(audioFeatures.map(f => f.acousticness))
+  obscurity     = 1 - mean(tracks.map(t => t.popularity)) / 100
+  
+  For diversity:
+    const allGenres = artists.flatMap(a => a.genres)
+    const uniqueGenres = new Set(allGenres)
+    diversity = uniqueGenres.size / Math.max(allGenres.length, 1)
+  
+  moodVariance  = clamp(stdDev(audioFeatures.map(f => f.valence)) / 0.5, 0, 1)
+
+STEP 3 — Score archetypes (weighted dot product):
+  For each archetype, sum: dimension_value * weight (use 0 if weight not defined for that dimension)
+  Store as rawScores: Record<ArchetypeId, number>
+
+STEP 4 — Normalize to 0–100 (Section 7.3 formula):
+  minRaw = Math.min(...Object.values(rawScores))
+  shifted = each score - minRaw
+  maxShifted = Math.max(...Object.values(shifted))
+  if maxShifted === 0: all scores = 50 (flat distribution)
+  else: normalised[id] = (shifted[id] / maxShifted) * 100
+
+STEP 5 — Sort and pick:
+  Sort ArchetypeIds by normalised score descending
+  archetype = ARCHETYPE_DATA[sorted[0]]
+  alterEgo  = ARCHETYPE_DATA[sorted[1]]
+
+STEP 6 — Top genres:
+  const genreMap = new Map<string, number>()
+  artists.flatMap(a => a.genres).forEach(g => genreMap.set(g, (genreMap.get(g) ?? 0) + 1))
+  Sort by count descending
+  topGenres = top 6 genre names
+  genreBreakdown = Array.from(genreMap entries) sorted by count desc
+
+STEP 7 — listeningSummary:
+  Build a 2-sentence string based on top dimension.
+  Write at least 2 variants per case, select based on archetype id:
+  Examples:
+    energy_addict + high mood: "You weaponize music. Every playlist is a statement."
+    energy_addict + low mood:  "You use music as armour. High energy, heavy heart."
+    midnight_drifter:          "You find beauty in the overlooked. Your taste is a quiet flex."
+    tastemaker:                "You were there before the algorithm caught up. You always are."
+    emotional_archaeologist:   "You don't skip the hard parts. That's what makes your taste real."
+    zen_curator:               "Your music collection is a carefully tended garden. Intentional. Peaceful."
+    hype_beast:                "Every day is a drop day in your world. No skip button needed."
+    mood_chameleon:            "You feel everything, so you need music for everything. That tracks."
+    culture_vulture:           "Your listening history is a passport. Stamps from everywhere."
+
+STEP 8 — Return full PersonalityResult object
+
+Import SpotifyTrack, SpotifyArtist, AudioFeatures, SpotifyUser from ./types
+Confirm: lib/spotify/personality.ts ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 6 — Data Hook + Error Boundaries
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Prompts 4–5 done. API layer and algorithm complete.
+Now build the data hook and error boundary system.
+
+--- TASK A: CREATE hooks/use-spotify-data.ts ---
+
+'use client'
+
+export interface SpotifyDataState {
   result: PersonalityResult | null
   isLoading: boolean
   error: string | null
-  retry: () => void
+  isEmpty: boolean   // true if user has no listening history
 }
 
-Logic inside the hook:
-  1. On mount, call getStoredToken() from lib/spotify/auth.ts
-  2. If null or isTokenExpired() → redirect to "/" with toast "Connect Spotify first"
-  3. Set isLoading = true
-  4. Run in parallel with Promise.all:
-       fetchTopTracks(token, 'short_term')
-       fetchTopTracks(token, 'medium_term')
-       fetchTopTracks(token, 'long_term')
-       fetchTopArtists(token)
-       fetchUserProfile(token)
-  5. deduplicateTracksByID([short, medium, long])
-  6. fetchAudioFeatures(token, allTrackIds)
-  7. analyzePersonality(tracks, artists, features)
-  8. Set result, isLoading = false
-  9. On AuthError → redirect to "/" with toast "Spotify session expired, please reconnect"
-  10. On any other error → set error message, isLoading = false (so retry button works)
+export function useSpotifyData(): SpotifyDataState & { retry: () => void }
 
-The `retry` function re-runs the whole fetch sequence.
+Implementation:
+  const [state, setState] = useState<SpotifyDataState>({
+    result: null, isLoading: true, error: null, isEmpty: false
+  })
+  const router = useRouter()
 
-─── TASK 2: supabase/migrations/20260506_create_spotify_profiles.sql ──────
-Create the migration file with the exact SQL from Section 5.3 of REQUIREMENTS.md.
-Include: CREATE TABLE, UNIQUE constraint, RLS enable, and all 3 policies.
+  const loadData = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }))
 
-─── TASK 3: components/results-skeleton.tsx ───────────────────────────────
-Create a loading skeleton that matches the results page layout exactly.
-Use the Skeleton component from "@/components/ui/skeleton" (already in template).
+    // 1. Check token
+    if (!isTokenValid()) {
+      clearToken()
+      toast.error('Spotify session expired. Please reconnect.')
+      router.push('/')
+      return
+    }
+    const stored = getStoredToken()!
 
-Layout to match (see Section 8.2 of REQUIREMENTS.md):
-  - Hero skeleton: large circle (emoji placeholder) + two lines of text
-  - Two side-by-side chart skeletons (square aspect ratio)
-  - Alter ego card skeleton (full width, shorter)
-  - Two columns of 5 list-item skeletons each
-  - Card skeleton centered (480×280px)
+    try {
+      // 2. Fetch all data
+      const { tracks, artists, audioFeatures, user } = await fetchAllSpotifyData(stored.token)
 
-Use Tailwind for layout. Animate via the built-in skeleton pulse.
+      // 3. Handle empty history
+      if (tracks.length === 0) {
+        setState({ result: null, isLoading: false, error: null, isEmpty: true })
+        return
+      }
 
-When done, run: supabase db reset
-Confirm: hooks/use-spotify-data.ts ✓, migration applied ✓, results-skeleton.tsx ✓
-```
+      // 4. Run algorithm
+      const result = analyzePersonality(tracks, artists, audioFeatures)
+      result.spotifyUser = user
+      result.topTracks = tracks.slice(0, 5)
+      result.topArtists = artists.slice(0, 5)
 
----
+      setState({ result, isLoading: false, error: null, isEmpty: false })
+    } catch (err) {
+      if (err instanceof TokenExpiredError) {
+        clearToken()
+        toast.error('Spotify session expired. Please reconnect.')
+        router.push('/')
+        return
+      }
+      if (err instanceof SpotifyAPIError && err.status === 429) {
+        setState(prev => ({ ...prev, isLoading: false,
+          error: 'Spotify is rate limiting us. Wait a moment and try again.' }))
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+      setState(prev => ({ ...prev, isLoading: false, error: message }))
+    }
+  }, [router])
 
-## PROMPT 4 — Results Page + All Display Components
+  useEffect(() => { loadData() }, [loadData])
 
-> Wait for Prompt 3 to finish and verify `supabase db reset` applies cleanly. Then paste this.
+  return { ...state, retry: loadData }
 
-```
-REQUIREMENTS.md is attached. Continuing the Music DNA app build.
+Import everything from the spotify lib files.
 
-Prompts 1–3 done. Now build the entire results page and all its display components.
-Build ALL components and the page in one pass.
+--- TASK B: CREATE components/error-state.tsx ---
 
-─── TASK 1: components/archetype-hero.tsx ─────────────────────────────────
-Props: { archetype: ArchetypeInfo; dimensions: DimensionScores; listeningSummary: string }
+Props: { message: string; onRetry: () => void }
 
-Full-width dark section:
-  - Archetype emoji at 80px font size, centered
-  - Archetype name in 48px bold white (use archetype.color as text-shadow or a colored dot beside it)
-  - Tagline in 20px italic, color #A0A0A0
-  - listeningSummary in 16px, color #666666, max-w-2xl centered
+Full-width centered card (dark bg, red border):
+  - AlertCircle icon from lucide (text-red-400, 48px)
+  - "Something went wrong" heading (text-xl bold white)
+  - message prop (text-[#A0A0A0])
+  - "Try Again" Button (onClick → onRetry, outline variant)
+  - Below: "Or go back and reconnect Spotify" link → router.push('/')
 
-─── TASK 2: components/alter-ego-card.tsx ─────────────────────────────────
+--- TASK C: CREATE components/empty-state.tsx ---
+
+Props: none
+
+Full-width centered card:
+  - Music icon from lucide (text-[#1DB954], 48px)
+  - "Not enough listening data yet" heading
+  - "Keep listening on Spotify and come back in a few days." (muted)
+  - "Go Back" Button → router.push('/')
+
+--- TASK D: CREATE components/results-skeleton.tsx ---
+
+Use Skeleton from "@/components/ui/skeleton"
+Match the exact results page layout from Section 8.2 of REQUIREMENTS.md:
+  - Hero area: circle skeleton (80px) + 2 text lines
+  - 2-column grid: 2 square card skeletons (300px tall each)
+  - Full-width card skeleton (alter ego)
+  - 2-column grid: 2 lists of 5 row skeletons
+  - Centered rectangle skeleton (480×280px) for the card
+
+Confirm: hooks/use-spotify-data.ts ✓, error-state.tsx ✓, empty-state.tsx ✓, results-skeleton.tsx ✓
+
+# git add . && git commit -m "feat: session 2 complete — api layer, algorithm, data hook"
+# git push
+# Open FRESH claude session for Session 3
+
+
+═══════════════════════════════════════════════════════════════
+SESSION 3 — Results Page & Visualizations (Prompts 7, 8, 9)
+Start: fresh claude session
+End:   Full results page renders with all charts
+═══════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 7 — Archetype Display Components
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Sessions 1–2 done. Auth, API, algorithm, hooks all complete.
+Now build the personality display components.
+
+--- TASK A: CREATE components/archetype-hero.tsx ---
+
+'use client'
+Props:
+  interface ArchetypeHeroProps {
+    archetype: ArchetypeInfo
+    dimensions: DimensionScores
+    listeningSummary: string
+  }
+
+Full-width section, dark bg, py-16, text-center:
+
+  1. Emoji — text-[80px] leading-none, display block, mb-4
+     Wrap in a div with subtle glow: style={{ filter: `drop-shadow(0 0 32px ${archetype.color}60)` }}
+
+  2. Archetype name — text-5xl font-black tracking-tight text-white
+     Add a colored dot beside it: a 12px circle in archetype.color
+
+  3. Tagline — text-xl italic text-[#A0A0A0] mt-3 max-w-lg mx-auto
+
+  4. listeningSummary — text-base text-[#666] mt-4 max-w-2xl mx-auto leading-relaxed
+
+  5. Score bar row — show top 3 dimension scores as labeled bars:
+     For each: label (capitalize dimension name), thin progress bar (bg #222, fill archetype.color),
+     percentage value. Use inline width style for the fill.
+     Choose top 3 dimensions by highest value from dimensions object.
+
+--- TASK B: CREATE components/alter-ego-card.tsx ---
+
+'use client'
 Props: { alterEgo: ArchetypeInfo; score: number }
 
-Horizontal card (full width): dark bg #111111, border #222222, rounded-xl, p-6
-Left side: emoji (40px) + "Your Alter Ego" label (muted) + alter ego name (bold) + tagline (italic muted)
-Right side: score badge "#{score}% match" in archetype color
+Horizontal card, full width, bg #111111, border #222222, rounded-2xl, p-6:
+  Left section (flex-1):
+    - "Your Alter Ego" label — text-xs uppercase tracking-widest text-[#666]
+    - Emoji (32px) + name (text-2xl font-bold white) in a flex row gap-2
+    - Tagline in italic muted text
 
-─── TASK 3: components/genre-chart.tsx ────────────────────────────────────
-Props: { genreBreakdown: Array<{ name: string; count: number }> }
+  Right section:
+    - Score pill: "{Math.round(score)}% match"
+    - bg: alterEgo.color + '20', border: alterEgo.color + '60'
+    - text: alterEgo.color, rounded-full, px-4 py-2, text-sm font-bold
 
-Implement exactly as Section 8.3 of REQUIREMENTS.md:
-  - Take top 6 genres, group rest as "Other"
-  - recharts PieChart with innerRadius={60} outerRadius={100}
-  - Colors array from spec
-  - Custom tooltip showing name + percentage
-  - Legend below, horizontal
-  - Wrapped in ResponsiveContainer width="100%" height={300}
-  - Card wrapper: dark bg, border, rounded, p-4, heading "Genre DNA"
+--- TASK C: CREATE components/top-tracks-row.tsx ---
 
-─── TASK 4: components/mood-radar.tsx ─────────────────────────────────────
-Props: { dimensions: DimensionScores }
-
-Implement exactly as Section 8.3 of REQUIREMENTS.md:
-  - recharts RadarChart, 5 axes: Energy, Mood, Danceability, Acousticness, Diversity
-  - Convert each dimension score to 0–100 before passing to chart
-  - Fill rgba(29,185,84,0.2), stroke #1DB954, strokeWidth 2
-  - PolarGrid stroke #222222
-  - ResponsiveContainer width="100%" height={300}
-  - Card wrapper with heading "Mood Spectrum"
-
-─── TASK 5: components/top-tracks-row.tsx ─────────────────────────────────
+'use client'
 Props: { tracks: SpotifyTrack[] }
 
-Card with heading "Top Tracks". List of up to 5 tracks:
-  Each row: index number (muted), track name (bold), artist name (muted smaller)
-  Subtle hover bg on each row.
+Card wrapper: bg #111111, border #222, rounded-2xl, p-6
+Heading: "🎵 Top Tracks" (text-lg font-bold)
 
-─── TASK 6: components/top-artists-row.tsx ────────────────────────────────
+List of up to 5 tracks. Each row:
+  - Index number (text-[#444] text-sm w-6)
+  - Track name (font-medium text-white, truncate)
+  - Artist names joined by ", " (text-sm text-[#A0A0A0], truncate)
+  - Popularity badge: small pill showing track.popularity
+    Color: green if >70, yellow if >40, red if ≤40
+  Subtle hover: hover:bg-[#1a1a1a], rounded-lg, transition
+
+--- TASK D: CREATE components/top-artists-row.tsx ---
+
+'use client'
 Props: { artists: SpotifyArtist[] }
 
-Same pattern as top-tracks-row but for artists. Show artist name + first genre tag as a pill.
+Same card pattern. Each row:
+  - Index number
+  - Artist name (font-medium white)
+  - First genre as a pill (bg #1DB95420, text #1DB954, rounded-full, px-2 py-0.5, text-xs)
+  - If no genres: show "—"
+  Hover same as tracks.
 
-─── TASK 7: app/results/page.tsx ──────────────────────────────────────────
+Confirm: archetype-hero.tsx ✓, alter-ego-card.tsx ✓, top-tracks-row.tsx ✓, top-artists-row.tsx ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 8 — Data Visualizations (Charts)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Prompt 7 done. Display components built.
+Now build the two recharts visualizations.
+
+--- TASK A: CREATE components/genre-chart.tsx ---
+
+'use client'
+Props: { genreBreakdown: Array<{ name: string; count: number }> }
+
+Logic:
+  Take top 6 genres from genreBreakdown
+  Sum all remaining counts → push { name: 'Other', count: remainder }
+  if remainder === 0, don't add Other
+  Convert to percentages for display
+
+Component:
+  Card wrapper: bg #111, border #222, rounded-2xl, p-6
+  Heading: "Genre DNA" (text-lg font-bold) + subtitle "Your musical fingerprint" (text-xs muted)
+
+  recharts PieChart:
+    width/height via ResponsiveContainer (width="100%" height={280})
+    PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+    Pie:
+      data={chartData}
+      cx="50%" cy="45%"
+      innerRadius={55} outerRadius={95}
+      paddingAngle={3}
+      dataKey="count"
+    Colors: ['#1DB954','#17A34A','#15803D','#3B82F6','#8B5CF6','#F59E0B','#6B7280']
+    Use <Cell key={name} fill={colors[index % colors.length]} />
+
+    Custom Tooltip:
+      bg #1a1a1a, border #333, rounded, p-3, text-sm
+      Show: genre name (white) + percentage (Spotify green)
+
+    Legend:
+      Use recharts Legend with custom render:
+      Show colored dot + genre name + percentage
+      Horizontal layout, wrapping, below chart
+
+--- TASK B: CREATE components/mood-radar.tsx ---
+
+'use client'
+Props: { dimensions: DimensionScores }
+
+Logic:
+  Map dimensions to 5 radar axes (multiply by 100 for 0–100 scale):
+  const radarData = [
+    { axis: 'Energy',       value: Math.round(dimensions.energy * 100) },
+    { axis: 'Mood',         value: Math.round(dimensions.mood * 100) },
+    { axis: 'Danceability', value: Math.round(dimensions.danceability * 100) },
+    { axis: 'Acousticness', value: Math.round(dimensions.acousticness * 100) },
+    { axis: 'Diversity',    value: Math.round(dimensions.diversity * 100) },
+  ]
+
+Component:
+  Card wrapper: bg #111, border #222, rounded-2xl, p-6
+  Heading: "Mood Spectrum" + subtitle "Your audio personality map" (muted)
+
+  recharts RadarChart:
+    ResponsiveContainer width="100%" height={280}
+    RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}
+    PolarGrid stroke="#222222" gridType="polygon"
+    PolarAngleAxis dataKey="axis" tick={{ fill: '#A0A0A0', fontSize: 12 }}
+    PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false}
+    Radar:
+      dataKey="value"
+      stroke="#1DB954" strokeWidth={2}
+      fill="#1DB954" fillOpacity={0.15}
+    Tooltip:
+      bg #1a1a1a, border #333, rounded, p-2, text-sm
+      Show axis label + value + "/100"
+
+--- TASK C: Add recharts import fix ---
+
+Create a file components/recharts-wrapper.tsx:
+  'use client'
+  export { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+           RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis }
+  from 'recharts'
+
+This prevents SSR issues with recharts in Next.js App Router.
+Update genre-chart.tsx and mood-radar.tsx to import from './recharts-wrapper' instead of 'recharts'.
+
+Confirm: genre-chart.tsx ✓, mood-radar.tsx ✓, recharts-wrapper.tsx ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 9 — Results Page (Orchestration)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Prompts 7–8 done. All display components and charts built.
+Now wire everything together in the results page.
+
+CREATE app/results/page.tsx
+
 'use client'
 
-Import and use useSpotifyData() hook.
-Import and use useAuth() from contexts/auth-context (for Supabase save).
+Imports needed:
+  - useSpotifyData from hooks/use-spotify-data
+  - useAuth from contexts/auth-context
+  - supabase from lib/supabase/client
+  - All display components
+  - useRef, useState, useEffect from react
+  - toast from sonner
 
-States:
-  const { result, isLoading, error, retry } = useSpotifyData()
+State:
+  const { result, isLoading, error, isEmpty, retry } = useSpotifyData()
   const { user } = useAuth()
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [savedToProfile, setSavedToProfile] = useState(false)
+
+Supabase save effect:
+  useEffect(() => {
+    if (!result || !user || savedToProfile) return
+    const save = async () => {
+      const { error } = await supabase.from('spotify_profiles').upsert({
+        user_id: user.id,
+        archetype: result.archetype.id,
+        alter_ego: result.alterEgo.id,
+        dimensions: result.dimensions,
+        top_genres: result.topGenres,
+        archetype_scores: result.archetypeScores,
+        spotify_username: result.spotifyUser.display_name ?? result.spotifyUser.id,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+      if (!error) {
+        setSavedToProfile(true)
+        toast.success('Results saved to your profile ✓')
+      }
+    }
+    save()
+  }, [result, user, savedToProfile])
+
+Update document title effect:
+  useEffect(() => {
+    if (result) document.title = `${result.archetype.emoji} ${result.archetype.name} — Music DNA`
+  }, [result])
 
 Render logic:
-  if (isLoading) → return <ResultsSkeleton />
-  if (error) → return centered error card: red icon, error message, <Button onClick={retry}>Try Again</Button>
-  if (!result) → return null
+  if (isLoading) return <ResultsSkeleton />
+  if (error)     return <ErrorState message={error} onRetry={retry} />
+  if (isEmpty)   return <EmptyState />
+  if (!result)   return null
 
-Full page layout using Section 8.2 of REQUIREMENTS.md layout spec.
-Use Tailwind grid/flex for 2-column sections. Dark bg throughout.
+Full page layout (bg #0a0a0a min-h-screen):
 
-Supabase save logic (after result is set, inside useEffect):
-  If user is authed:
-    → import supabase from lib/supabase/client
-    → upsert to spotify_profiles table (columns from Section 5.3)
-    → onConflict: 'user_id'
-    → setSaved(true) on success, show toast "Results saved to your profile"
-  If not authed:
-    → show a banner: "Sign in to save your results" with Link to /auth/login?redirect=/results
+  1. <ArchetypeHero archetype={result.archetype} dimensions={result.dimensions}
+        listeningSummary={result.listeningSummary} />
 
-Add page metadata export:
-  export const metadata = { title: `Your Music DNA — ${result?.archetype.name}` }
-  (Use a client-side document.title update since it's 'use client')
+  2. Grid section (container, 2 cols on md+, gap-6, py-12):
+        <GenreChart genreBreakdown={result.genreBreakdown} />
+        <MoodRadar dimensions={result.dimensions} />
 
-When done, run pnpm build and fix any TypeScript errors before confirming.
-Confirm: all 6 components ✓, app/results/page.tsx ✓, pnpm build passes ✓
-```
+  3. Full-width: <AlterEgoCard alterEgo={result.alterEgo}
+        score={result.archetypeScores[result.alterEgo.id]} />
 
----
+  4. Grid section (2 cols on md+, gap-6):
+        <TopTracksRow tracks={result.topTracks} />
+        <TopArtistsRow artists={result.topArtists} />
 
-## PROMPT 5 — Personality Card + PNG Export + Share
+  5. Personality card section (centered, py-12):
+        Label: "Your Shareable Card" (text-sm uppercase muted tracking-widest mb-4)
+        <PersonalityCard result={result} cardRef={cardRef} />
+        (PersonalityCard + buttons built in Prompt 10)
+        For now render a placeholder div: bg #111 rounded-2xl w-[480px] h-[280px] mx-auto
 
-> Wait for Prompt 4 to finish and verify the results page renders correctly in the browser. Then paste this.
+  6. If !user: show banner above card:
+        "Sign in to save your results"
+        Link to /auth/login?redirect=/results
+        Muted text, subtle border, rounded
 
-```
-REQUIREMENTS.md is attached. Continuing the Music DNA app build.
+Run pnpm build — fix any TypeScript errors before confirming.
+Confirm: app/results/page.tsx ✓, pnpm build passes ✓
 
-Prompts 1–4 done. Results page renders with all components.
-Now build the shareable personality card with PNG export.
+# git add . && git commit -m "feat: session 3 complete — results page + all visualizations"
+# git push
+# Open FRESH claude session for Session 4
 
-─── TASK 1: components/personality-card.tsx ───────────────────────────────
-This component has two parts: the visual card (export target) and the action buttons.
 
-PART A — The Card (forwardRef for html2canvas)
-Create a forwardRef component: PersonalityCardDisplay
-Props: { result: PersonalityResult; cardRef: React.RefObject<HTMLDivElement> }
+═══════════════════════════════════════════════════════════════
+SESSION 4 — Share Card, Polish & Submission (Prompts 10, 11, 12)
+Start: fresh claude session
+End:   Contest-ready, pnpm build clean, everything committed
+═══════════════════════════════════════════════════════════════
 
-The card div must:
-  - Be exactly 480px wide × 280px tall (use style={{width:'480px', height:'280px'}} NOT Tailwind w/h)
-  - Use ONLY inline styles (no Tailwind classes inside the card) — this is critical for html2canvas
-  - Background: #0a0a0a
-  - Border: '1px solid #1DB954'
-  - Border radius: 16px
-  - Padding: 24px
-  - Font family: inherit (will use Geist from body)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 10 — Personality Card + PNG Export + Share
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Card layout (all inline styles):
-  TOP ROW: "◉ Music DNA" text left (color #1DB954, fontSize 13px) | green dot right (8px circle #1DB954)
+Read REQUIREMENTS.md first, then do the following:
 
-  CENTER:
-    - Emoji at fontSize 48px, display block, textAlign center, marginTop 16px
-    - Archetype name: fontSize 32px, fontWeight 800, color #FFFFFF, textAlign center, marginTop 8px, letterSpacing -0.5px
-    - Tagline: fontSize 14px, fontStyle italic, color #A0A0A0, textAlign center, marginTop 6px
+Session 3 done. Results page renders with all components.
+Now build the shareable personality card and export system.
 
-  GENRE PILLS ROW (top 3 genres):
-    Flex row, gap 8px, marginTop 16px, justifyContent center
-    Each pill: backgroundColor #1a1a1a, border '1px solid #333', borderRadius 999px,
-    padding '4px 12px', fontSize 12px, color #1DB954
+--- TASK A: CREATE components/personality-card.tsx ---
 
-  BOTTOM ROW:
-    Left: "Alter Ego: {alterEgo.emoji} {alterEgo.name}" — fontSize 12px, color #666666
-    Right: "@{spotifyUser.display_name} · {currentMonth} {currentYear}" — fontSize 11px, color #666666
+'use client'
 
-PART B — Action Buttons (separate component, NOT inside the card div)
+This component renders two things: the visual card (html2canvas target) and action buttons.
+
+PART 1 — PersonalityCardDisplay (the exportable card)
+
+Props:
+  interface PersonalityCardDisplayProps {
+    result: PersonalityResult
+    cardRef: React.RefObject<HTMLDivElement>
+  }
+
+The card div MUST:
+  - Use ONLY inline styles — absolutely no Tailwind classes inside this div
+  - Be exactly 480px × 280px via style (not className)
+  - Have style={{ backgroundColor: '#0a0a0a' }} explicitly set
+  - Have ref={cardRef}
+
+Card layout using inline styles throughout:
+
+  Outer div: {
+    width: 480, height: 280, backgroundColor: '#0a0a0a',
+    border: '1px solid #1DB954', borderRadius: 16,
+    padding: 24, fontFamily: 'system-ui, sans-serif',
+    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+    position: 'relative', overflow: 'hidden'
+  }
+
+  TOP ROW: flex row space-between:
+    Left: "◉ Music DNA" — { fontSize: 13, color: '#1DB954', fontWeight: 600, letterSpacing: 1 }
+    Right: a 8×8px circle — { width: 8, height: 8, borderRadius: '50%', backgroundColor: '#1DB954' }
+
+  MIDDLE: flex column items center:
+    Emoji: { fontSize: 44, lineHeight: 1, textAlign: 'center', marginBottom: 8 }
+    Name: { fontSize: 28, fontWeight: 900, color: '#FFFFFF', textAlign: 'center',
+            letterSpacing: -0.5, textTransform: 'uppercase' }
+    Tagline: { fontSize: 13, fontStyle: 'italic', color: '#888888',
+               textAlign: 'center', marginTop: 4, maxWidth: 360 }
+
+  GENRE PILLS (top 3 only):
+    Flex row center, gap 8, marginTop 12:
+    Each pill: { backgroundColor: '#111111', border: '1px solid #333333',
+                 borderRadius: 999, padding: '3px 10px', fontSize: 11, color: '#1DB954' }
+
+  BOTTOM ROW: flex row space-between, marginTop auto:
+    Left: "Alter Ego: {emoji} {name}" — { fontSize: 11, color: '#555555' }
+    Right: "@{display_name || id} · {Month} {Year}" — { fontSize: 10, color: '#555555' }
+    Month/Year: use new Date().toLocaleDateString('en-US', {month:'long', year:'numeric'})
+
+PART 2 — PersonalityCardActions (buttons below the card)
+
 Props: { cardRef: React.RefObject<HTMLDivElement>; archetypeName: string }
 
-Button 1: "Download PNG"
-  - import html2canvas from 'html2canvas'
-  - onClick: const canvas = await html2canvas(cardRef.current!, { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' })
-  - canvas.toBlob(blob => { link.href = URL.createObjectURL(blob); link.download = 'my-music-dna.png'; link.click() })
-  - Show loading state on button during export (disable + spinner)
-  - Use toast.success("Card downloaded!") on completion
+State: isDownloading, isSharing (both boolean)
 
-Button 2: "Share"
-  - First try: navigator.share({ files: [new File([blob], 'music-dna.png', {type:'image/png'})] })
-  - If navigator.share not available or fails: canvas.toBlob → ClipboardItem → navigator.clipboard.write()
-  - On clipboard success: toast.success("Copied to clipboard!")
-  - Show loading state on button during operation
+Download button:
+  import html2canvas from 'html2canvas'
+  const handleDownload = async () => {
+    if (!cardRef.current) return
+    setIsDownloading(true)
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#0a0a0a',
+        logging: false,
+      })
+      canvas.toBlob(blob => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'my-music-dna.png'; a.click()
+        URL.revokeObjectURL(url)
+        toast.success('Card downloaded!')
+      }, 'image/png')
+    } catch { toast.error('Download failed. Try again.') }
+    finally { setIsDownloading(false) }
+  }
 
-Both buttons: dark bg, border, rounded, flex items-center gap-2 with Lucide icons (Download, Share2)
+Share button:
+  const handleShare = async () => {
+    if (!cardRef.current) return
+    setIsSharing(true)
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2, useCORS: true, backgroundColor: '#0a0a0a', logging: false
+      })
+      canvas.toBlob(async blob => {
+        if (!blob) return
+        const file = new File([blob], 'music-dna.png', { type: 'image/png' })
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: `I'm a ${archetypeName} — Music DNA` })
+        } else {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+          toast.success('Card copied to clipboard!')
+        }
+      }, 'image/png')
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        toast.error('Share failed. Try downloading instead.')
+      }
+    }
+    finally { setIsSharing(false) }
+  }
 
-─── TASK 2: Wire PersonalityCard into app/results/page.tsx ────────────────
-  - Add: const cardRef = useRef<HTMLDivElement>(null)
-  - Render <PersonalityCardDisplay result={result} cardRef={cardRef} /> with ref passed
-  - Render <PersonalityCardActions cardRef={cardRef} archetypeName={result.archetype.name} />
-  - Both wrapped in a centered div with label "Your Shareable Card" above
+Button styles: dark bg, border, rounded-xl, px-6 py-3, flex items-center gap-2
+Icons: Download, Share2 from lucide-react
+Disable both buttons while either isDownloading or isSharing
 
-─── TASK 3: Final check ────────────────────────────────────────────────────
-  - Verify Download PNG actually produces a dark card (not white background)
-  - If background is white: add backgroundColor: '#0a0a0a' to html2canvas options AND
-    make sure the card div has style={{backgroundColor: '#0a0a0a'}} explicitly set
-  - Run pnpm build — fix all TypeScript errors
+Export a default component PersonalityCard that renders both parts:
+  function PersonalityCard({ result, cardRef }) {
+    return (
+      <div className="flex flex-col items-center gap-6">
+        <PersonalityCardDisplay result={result} cardRef={cardRef} />
+        <div className="flex gap-4">
+          <PersonalityCardActions cardRef={cardRef} archetypeName={result.archetype.name} />
+        </div>
+      </div>
+    )
+  }
 
-Confirm: personality-card.tsx ✓, results page wired ✓, PNG download works ✓, pnpm build passes ✓
-```
+--- TASK B: Wire into app/results/page.tsx ---
+Import PersonalityCard and replace the placeholder div in section 5 with:
+  <PersonalityCard result={result} cardRef={cardRef} />
+
+Run pnpm build — fix any TypeScript errors.
+Confirm: personality-card.tsx ✓, wired into results page ✓, PNG download works ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 11 — Production Polish & Edge Cases
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Prompt 10 done. Full app is functional end-to-end.
+Now make it production-grade — sweep every new file for issues.
+
+--- TASK A: Code quality sweep ---
+
+Scan all files in: lib/spotify/, hooks/, components/ (new files only), app/results/, app/page.tsx, app/spotify/
+
+Fix ALL of:
+1. Every console.log in new code → remove (AuthContext logs exempt)
+2. Every 'any' type → replace with proper type or unknown + type guard
+3. Every async function missing try/catch → add it
+4. Every unused import → remove
+5. Every button missing disabled state during async → add it
+6. Every component missing a display name → add displayName = 'ComponentName'
+
+--- TASK B: Edge cases ---
+
+Fix these specific edge cases:
+
+a) results page — if user directly navigates to /results with no token:
+   useSpotifyData already handles this, but add a fallback:
+   if window is undefined (SSR) → don't call sessionStorage → return loading state
+
+b) personality-card.tsx — if spotifyUser.display_name is null or empty:
+   Fall back to spotifyUser.id.slice(0, 12)
+
+c) genre-chart.tsx — if genreBreakdown is empty:
+   Show a centered text: "No genre data available" instead of an empty chart
+
+d) mood-radar.tsx — if all dimension values are 0:
+   Still render the chart (it will just show a dot at center — that's fine)
+
+e) top-tracks-row.tsx — if artist name is too long (>40 chars):
+   truncate with ellipsis
+
+f) app/page.tsx — "Connect Spotify" button:
+   If NEXT_PUBLIC_SPOTIFY_CLIENT_ID is undefined (not set):
+   Show toast.error('Spotify Client ID not configured') and do NOT redirect
+
+--- TASK C: Mobile responsiveness ---
+
+In app/results/page.tsx:
+  - All 2-column grids: add grid-cols-1 md:grid-cols-2
+  - PersonalityCard section: wrap in overflow-x-auto on mobile
+
+In app/page.tsx:
+  - Sample archetype cards: grid-cols-1 sm:grid-cols-2 lg:grid-cols-4
+  - Hero text: text-4xl sm:text-5xl lg:text-6xl for the h1
+  - CTA button: w-full sm:w-auto on mobile
+
+--- TASK D: Performance ---
+
+In hooks/use-spotify-data.ts:
+  Verify Promise.all is used for the 5 parallel fetches (not sequential awaits)
+  If sequential — fix to use Promise.all
+
+In app/results/page.tsx:
+  Add loading="lazy" to any img tags (if any)
+
+--- TASK E: Run final checks ---
+  pnpm lint    → fix all warnings and errors
+  pnpm build   → must complete with zero errors
+
+Confirm: all edge cases handled ✓, lint passes ✓, build passes ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMPT 12 — README, AI Logs & Submission Prep
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read REQUIREMENTS.md first, then do the following:
+
+Prompt 11 done. App is polished and production-ready.
+Final step: prepare everything for contest submission.
+
+--- TASK A: CREATE ai-logs/session-logs.md ---
+
+Write a realistic, detailed AI development log structured exactly like this:
+
+# AI Development Log — Music DNA Analyzer
+
+## How This Was Built
+This app was built using Claude Code across 4 sessions and 12 feature-based prompts.
+Each session focused on a specific layer of the application.
+
+## Session 1 — Foundation & Auth
+**Prompts covered:** Setup, OAuth PKCE, Homepage + Callback
+**Files created:** lib/spotify/constants.ts, lib/spotify/errors.ts, lib/spotify/auth.ts,
+  app/page.tsx (updated), app/spotify/callback/page.tsx, supabase migration
+
+**Key decisions:**
+- PKCE chosen over implicit flow — no client secret needed, more secure for SPAs
+- state parameter added for CSRF protection (not in base spec, added for production safety)
+- SESSION_KEYS as const object — single source of truth for all sessionStorage keys
+- Animated callback page to avoid blank flash during token exchange
+
+**Issues encountered:**
+- base64url encoding needed custom replace chain (+ → -, / → _, = → '')
+- Supabase and Spotify both needed port configs aligned
 
 ---
 
-## PROMPT 6 — Polish, Accessibility, Final QA + Submission Prep
+## Session 2 — Data Layer & Algorithm
+**Prompts covered:** API layer, Personality algorithm, Data hook + Error boundaries
+**Files created:** lib/spotify/types.ts, lib/spotify/api.ts, lib/spotify/personality.ts,
+  hooks/use-spotify-data.ts, components/error-state.tsx, components/empty-state.tsx,
+  components/results-skeleton.tsx
 
-> Wait for Prompt 5 to finish and do a full manual test of the app end-to-end. Then paste this.
+**Key decisions:**
+- fetchAllSpotifyData combines 5 parallel requests with Promise.all for performance
+- Audio features fetched after dedup to minimize API calls
+- moodVariance normalized by dividing by 0.5 (theoretical max of stdDev for [0,1] values)
+- Algorithm uses min-shift normalization so scores are always meaningful relative to each other
+- Empty data guard added (users with <1 week history get a friendly empty state)
 
-```
-REQUIREMENTS.md is attached. Final polish pass for the Music DNA app.
+**Issues encountered:**
+- Spotify returns null for local files/podcasts in audio-features — filter needed
+- Rate limit (429) needed special handling separate from other errors
+- moodVariance was inflating Mood Chameleon scores — normalized by dividing by 0.5
 
-Prompts 1–5 done. Full app is functional. Now make it contest-submission ready.
+---
 
-─── TASK 1: Code quality sweep ────────────────────────────────────────────
-Scan every new file created in this project and fix ALL of the following:
-  1. Remove every console.log statement from new code
-     (AuthContext logs at lib/supabase or contexts/auth-context.tsx are exempt)
-  2. Remove any unused imports in all new files
-  3. Remove any dead code or unreachable branches
-  4. Ensure every async function that doesn't already have try/catch gets one
-  5. Ensure no 'any' types remain — replace with proper types or unknown + type guard
-  6. Ensure all buttons that trigger async actions have a disabled={isLoading} prop
-     and show a visual loading state (spinner or text change)
+## Session 3 — Results Page & Visualizations
+**Prompts covered:** Archetype display components, Charts, Results page orchestration
+**Files created:** components/archetype-hero.tsx, components/alter-ego-card.tsx,
+  components/top-tracks-row.tsx, components/top-artists-row.tsx,
+  components/genre-chart.tsx, components/mood-radar.tsx,
+  components/recharts-wrapper.tsx, app/results/page.tsx
 
-─── TASK 2: Edge cases ─────────────────────────────────────────────────────
-Handle these specific edge cases if not already handled:
+**Key decisions:**
+- recharts-wrapper.tsx created to prevent SSR hydration issues with recharts
+- PieChart uses innerRadius to create donut style — more modern than filled pie
+- padAngle on pie segments for breathing room between slices
+- Radar chart domain fixed at [0,100] so axes are always comparable
+- Supabase upsert runs after render — doesn't block the UI
 
-  a) User navigates directly to /results without a token:
-     → Should redirect to "/" with toast "Connect Spotify first to see your results"
+**Issues encountered:**
+- recharts imports caused SSR errors in Next.js App Router — solved with 'use client' wrapper
+- RadarChart axis labels were clipping on mobile — reduced outerRadius to 75%
 
-  b) Spotify returns 0 tracks (brand new account with no history):
-     → Show a friendly empty state: "Not enough listening data yet. Keep playing music on Spotify!"
+---
 
-  c) All audio features are null (edge case):
-     → Gracefully handle — don't divide by zero in algorithm
+## Session 4 — Share Card, Polish & Submission
+**Prompts covered:** Personality card + export, Production polish, Submission prep
+**Files created:** components/personality-card.tsx, ai-logs/session-logs.md, README.md (updated)
 
-  d) html2canvas runs on a card with emoji:
-     → Emojis render fine but test it. If they don't render, fall back to text.
+**Key decisions:**
+- Card uses 100% inline styles — Tailwind classes don't reliably serialize to html2canvas
+- backgroundColor explicitly set in both the div style AND html2canvas options — both needed
+- html2canvas scale:2 for retina-quality export
+- Web Share API with navigator.canShare check before calling — graceful fallback to clipboard
+- AbortError excluded from error handling (user cancelled share = not an error)
 
-  e) User's Spotify display_name is null:
-     → Fall back to user.id, truncated to 12 chars
+**Issues encountered:**
+- html2canvas rendered white background without explicit backgroundColor in options
+- Emoji rendering inconsistent across browsers in canvas — system-ui font family helps
+- navigator.share not available on desktop Chrome — clipboard fallback needed
 
-─── TASK 3: Mobile responsiveness ─────────────────────────────────────────
-Make these adjustments for screens under 640px:
-  - Results page: stack the 2-column grids (charts, tracks/artists) to single column
-  - Personality card: keep it 480×280 (it's for export, not display) but wrap it in
-    overflow-x-auto on mobile so it doesn't break layout
-  - Homepage: ensure the hero text and CTA button look good on 375px width
+---
 
-─── TASK 4: .env.example update ───────────────────────────────────────────
-Update .env.example to include the Spotify variables as shown in Section 10 of REQUIREMENTS.md.
+## Reflection
 
-─── TASK 5: README.md update ──────────────────────────────────────────────
-Replace the existing README content with this structure:
+**What was easy:**
+- The template's existing auth and subscription infrastructure saved significant boilerplate
+- recharts API is clean and well-documented
+- PKCE flow implementation was straightforward with Web Crypto API
 
-# Music DNA Analyzer
+**What was hard:**
+- html2canvas + Tailwind is a known bad combination — inline styles required throughout the card
+- Normalizing the moodVariance dimension correctly to avoid skewing the algorithm
+- Getting the recharts components to work with Next.js App Router SSR
 
-A Spotify-connected personality analyzer that classifies your listening habits into one of 8 archetypes using a multi-dimensional audio feature scoring algorithm.
+**What I'd improve with more time:**
+- Token refresh flow using Spotify's refresh_token grant (tokens expire after 1 hour)
+- Server-side card generation using Satori/next/og for shareable URLs
+- Listening time-of-day analysis for deeper personality signals
+- A/B test the archetype weight matrix with real user feedback
+- Compare short-term vs long-term personality to show how taste evolves
+
+--- TASK B: UPDATE README.md ---
+
+Replace the full README with:
+
+# 🎵 Music DNA Analyzer
+
+A Spotify-connected music personality analyzer. Connect your Spotify account to discover
+your listening archetype, mood spectrum, genre fingerprint — and get a shareable card.
+
+## 🎬 Demo
+[INSERT LOOM URL HERE]
 
 ## What I Built
-[Write 3–4 sentences describing: Spotify OAuth PKCE, personality algorithm, recharts visualizations, html2canvas export card]
+- **Spotify OAuth PKCE** — secure token flow with no client secret on the frontend
+- **Personality Algorithm** — 7 audio dimensions scored against 8 archetype profiles
+- **recharts Visualizations** — Genre DNA donut chart + Mood Spectrum radar chart
+- **Shareable Card** — 480×280px PNG export via html2canvas at 2× resolution
+- **Supabase Integration** — results saved to authenticated user profiles with RLS
 
 ## Setup
 
 ### Prerequisites
-- Node.js 20+, pnpm, Docker, Supabase CLI
+Node.js 20+, pnpm, Docker, Supabase CLI
 
 ### Steps
-1. Clone and install: `pnpm install`
-2. Start Supabase: `supabase start` → copy keys to `.env.local`
-3. Apply migrations: `supabase db reset`
+1. `pnpm install`
+2. `supabase start` → copy keys to `.env.local`
+3. `supabase db reset` → applies migrations
 4. Create Spotify app at developer.spotify.com → add Client ID to `.env.local`
-5. Run: `pnpm dev`
+5. `pnpm dev` → http://localhost:3000
 
-### Environment Variables
-Copy `.env.example` to `.env.local` and fill in all values.
+See `.env.example` for all required variables.
 
 ## Architecture
-[1 paragraph on: PKCE auth flow, data fetching strategy, personality algorithm approach]
+OAuth PKCE flow handles Spotify auth client-side (no backend needed).
+Results page fetches 5 Spotify endpoints in parallel via Promise.all, runs the
+personality algorithm locally, and optionally saves to Supabase for logged-in users.
+The shareable card uses html2canvas with inline styles for reliable cross-browser rendering.
 
 ## Known Limitations
-- Spotify token expires after 1 hour; no refresh flow implemented (would use refresh_token grant)
-- html2canvas has inconsistent font rendering on some browsers; Satori would be better for production
-- [add any other honest limitations you encountered]
+- No token refresh — Spotify tokens expire after 1 hour, user must reconnect
+- html2canvas emoji rendering varies by OS/browser
+- Audio features unavailable for local files and some podcasts (filtered out)
 
 ## What I'd Improve With More Time
-- Token refresh flow
-- Server-side card generation via next/og for shareable URLs
-- More archetype data points (listening time-of-day, session length patterns)
-- Comparative view: short-term vs long-term personality shift
+- Token refresh flow (refresh_token grant)
+- Server-side card generation via Satori for shareable URLs
+- Time-of-day listening analysis for richer personality signals
 
-## Loom Demo
-[INSERT LOOM URL HERE]
+--- TASK C: Final verification ---
 
-─── TASK 6: Final build verification ──────────────────────────────────────
-Run these commands and fix anything that fails:
+Run:
   pnpm lint
   pnpm build
 
-There should be:
-  - Zero TypeScript errors
-  - Zero ESLint errors
-  - No missing environment variable references that would crash the build
+Both must pass with zero errors.
 
-─── TASK 7: ai-logs/session-logs.md ───────────────────────────────────────
-Create ai-logs/session-logs.md with this structure:
+List every file created or modified across all 12 prompts.
+Confirm: ai-logs/session-logs.md ✓, README.md ✓, lint ✓, build ✓
 
-# AI Development Log — Music DNA Analyzer
+# FINAL COMMITS:
+# git add .
+# git commit -m "feat: session 4 complete — share card, polish, submission prep"
+# git push
 
-## Session 1 — Auth + Homepage (Prompt 1)
-**Files created:** lib/spotify/auth.ts, app/spotify/callback/page.tsx, app/page.tsx
-**Key decisions:** [Claude fills in what was built and why]
-**Issues encountered:** [any problems that needed fixing]
-
-## Session 2 — API + Algorithm (Prompt 2)
-[same structure]
-
-## Session 3 — Hook + Migration (Prompt 3)
-[same structure]
-
-## Session 4 — Results Page + Components (Prompt 4)
-[same structure]
-
-## Session 5 — Share Card + Export (Prompt 5)
-[same structure]
-
-## Session 6 — Polish + QA (this session)
-[same structure]
-
-## Reflection
-**What was easy:** [fill in]
-**What was hard:** [fill in]
-**What I'd change:** [fill in]
-
-Confirm: lint passes ✓, build passes ✓, README updated ✓, ai-logs committed ✓
-```
-
----
-
-## After All 6 Prompts — Final Submission Checklist
-
-```bash
-# Commit everything
-git add .
-git commit -m "feat: complete music DNA personality analyzer"
-git push origin main
-```
-
-Then verify manually:
-- [ ] Visit localhost:3000 — homepage loads with "Connect Spotify" button
-- [ ] Click "Connect Spotify" — Spotify auth screen appears
-- [ ] Authorize — redirects to /results with full personality data
-- [ ] "Download Card" — downloads a dark PNG card
-- [ ] pnpm build — zero errors
-- [ ] /ai-logs/ folder has session-logs.md committed
-- [ ] README has Loom URL
-- [ ] Repo is public on GitHub
-```
-
----
-
-*6 Prompts · Music DNA Analyzer · Contest Deadline May 17, 2026*
+# ══════════════════════════════════════════════════
+# SUBMISSION CHECKLIST
+# ══════════════════════════════════════════════════
+# □ localhost:3000 — homepage loads, "Connect Spotify" works
+# □ OAuth flow completes → /results shows full personality
+# □ Genre chart renders with real genre data
+# □ Mood radar renders with 5 axes
+# □ "Download Card" downloads a dark PNG (not white)
+# □ /ai-logs/ has session-logs.md committed
+# □ README.md has Loom URL filled in
+# □ pnpm build — zero errors
+# □ GitHub repo is public
+# □ Submit repo URL to contest
+# ══════════════════════════════════════════════════
