@@ -25,7 +25,7 @@ shadow_port = 54520
 major_version = 15
 
 [studio]
-enabled = true
+enabled = false
 # Port to use for Supabase Studio.
 port = 54523
 # External URL of the API server that frontend connects to.
@@ -58,13 +58,16 @@ double_confirm_changes = true
 enable_confirmations = false
 
 [storage]
-enabled = true
+enabled = false
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
 [analytics]
-enabled = true
+enabled = false
 port = 54527
+
+[realtime]
+enabled = false
 
 [inbucket]
 enabled = true
