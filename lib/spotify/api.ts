@@ -1,47 +1,17 @@
-import { AuthError, SpotifyAPIError, TokenExpiredError } from './errors'
+import { TokenExpiredError, SpotifyAPIError } from './errors'
+import type {
+  SpotifyTrack,
+  SpotifyArtist,
+  AudioFeatures,
+  SpotifyUser,
+  TimeRange,
+  SpotifyDataBundle,
+} from './types'
 
-export { AuthError, SpotifyAPIError, TokenExpiredError }
+export { TokenExpiredError, SpotifyAPIError }
+export type { SpotifyTrack, SpotifyArtist, AudioFeatures, SpotifyUser, TimeRange, SpotifyDataBundle }
 
 export const SPOTIFY_API_BASE = 'https://api.spotify.com/v1'
-
-// ─── Spotify API Types ───────────────────────────────────────────────────────
-
-export interface SpotifyTrack {
-  id: string
-  name: string
-  artists: Array<{ id: string; name: string }>
-  album: { name: string; images: Array<{ url: string }> }
-  popularity: number
-  duration_ms: number
-}
-
-export interface SpotifyArtist {
-  id: string
-  name: string
-  genres: string[]
-  popularity: number
-  images: Array<{ url: string }>
-}
-
-export interface AudioFeatures {
-  id: string
-  energy: number
-  valence: number
-  danceability: number
-  acousticness: number
-  instrumentalness: number
-  tempo: number
-  loudness: number
-}
-
-export interface SpotifyUser {
-  id: string
-  display_name: string
-  country: string
-  images: Array<{ url: string }>
-}
-
-type TimeRange = 'short_term' | 'medium_term' | 'long_term'
 
 // ─── Request Helper ──────────────────────────────────────────────────────────
 
@@ -119,4 +89,22 @@ export function deduplicateTracksByID(trackArrays: SpotifyTrack[][]): SpotifyTra
     }
   }
   return unique
+}
+
+// ─── Composite Fetch ─────────────────────────────────────────────────────────
+
+export async function fetchAllSpotifyData(token: string): Promise<SpotifyDataBundle> {
+  const [shortTerm, mediumTerm, longTerm, artists, user] = await Promise.all([
+    fetchTopTracks(token, 'short_term'),
+    fetchTopTracks(token, 'medium_term'),
+    fetchTopTracks(token, 'long_term'),
+    fetchTopArtists(token),
+    fetchUserProfile(token),
+  ])
+
+  const tracks = deduplicateTracksByID([shortTerm, mediumTerm, longTerm])
+  const trackIds = tracks.map((t) => t.id)
+  const audioFeatures = await fetchAudioFeatures(token, trackIds)
+
+  return { tracks, artists, audioFeatures, user }
 }

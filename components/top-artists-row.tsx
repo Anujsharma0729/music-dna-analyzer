@@ -1,4 +1,4 @@
-import type { SpotifyArtist } from '@/lib/spotify/api'
+import type { SpotifyArtist } from '@/lib/spotify/types'
 import { Mic2 } from 'lucide-react'
 
 interface TopArtistsRowProps {

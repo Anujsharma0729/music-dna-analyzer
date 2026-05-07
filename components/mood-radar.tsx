@@ -6,7 +6,7 @@ import {
   PolarGrid,
   PolarAngleAxis,
   ResponsiveContainer,
-} from 'recharts'
+} from '@/components/recharts-wrapper'
 import type { DimensionScores } from '@/lib/spotify/personality'
 
 interface MoodRadarProps {

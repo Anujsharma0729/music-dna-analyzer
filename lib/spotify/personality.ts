@@ -1,4 +1,4 @@
-import type { AudioFeatures, SpotifyArtist, SpotifyTrack, SpotifyUser } from './api'
+import type { AudioFeatures, SpotifyArtist, SpotifyTrack, SpotifyUser } from './types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ export const ARCHETYPES: Record<ArchetypeId, ArchetypeInfo> = {
     emoji: '🌙',
     tagline: 'Your best playlists only make sense at 2am.',
     description:
-      'Slow, atmospheric, and beautifully melancholic — your listening is a late-night ritual. You gravitate toward sounds that feel like driving alone with no destination, finding meaning in the quiet spaces between notes.',
+      'You find music that most people walk right past. Your taste lives in the quiet hours — textured, atmospheric, and deeply felt. You listen like it matters, because for you, it does.',
     color: '#4A4E8C',
   },
   mood_chameleon: {
@@ -71,7 +71,7 @@ export const ARCHETYPES: Record<ArchetypeId, ArchetypeInfo> = {
     emoji: '🎭',
     tagline: 'Your playlist is a mood board. No one can predict you.',
     description:
-      "Your taste swings wildly and that's exactly the point. From heartbreak ballads to euphoric bangers within the same hour, you use music to navigate every emotional frequency. Consistency is boring — you'd rather feel everything.",
+      "You swing from euphoric to melancholic and back again without apology. You don't pick music to match your mood — your mood picks the music. Every playlist is a statement.",
     color: '#9B59B6',
   },
   tastemaker: {
@@ -234,17 +234,22 @@ function extractGenres(artists: SpotifyArtist[]): {
 
 // ─── Listening Summary (FR-03.6) ──────────────────────────────────────────────
 
-function buildListeningSummary(dimensions: DimensionScores, archetype: ArchetypeInfo): string {
-  const energyLabel =
-    dimensions.energy > 0.65 ? 'high-energy' : dimensions.energy < 0.35 ? 'low-energy' : 'mid-tempo'
-  const moodLabel =
-    dimensions.mood > 0.6 ? 'upbeat' : dimensions.mood < 0.4 ? 'melancholic' : 'emotionally balanced'
-  const danceLabel = dimensions.danceability > 0.65 ? 'highly danceable' : 'more ambient than dancefloor'
+const ARCHETYPE_SUMMARIES: Record<ArchetypeId, string> = {
+  energy_addict:           "You don't listen to music. You use it. Every track is a hit of something.",
+  midnight_drifter:        'You find beauty in the overlooked. Your taste is a quiet flex.',
+  mood_chameleon:          'You feel everything, so you need music for everything. That tracks.',
+  tastemaker:              'You were there before the algorithm caught up. You always are.',
+  emotional_archaeologist: "You don't skip the hard parts. That's what makes your taste real.",
+  hype_beast:              'Every day is a drop day in your world. No skip button needed.',
+  zen_curator:             'Your music collection is a carefully tended garden. Intentional. Peaceful.',
+  culture_vulture:         'Your listening history is a passport. Stamps from everywhere.',
+}
 
-  return (
-    `Your listening skews ${energyLabel} and ${moodLabel}, with ${danceLabel} tracks making up the bulk of your rotation. ` +
-    `That puts you squarely in ${archetype.name} territory — ${archetype.tagline.toLowerCase()}`
-  )
+function buildListeningSummary(dimensions: DimensionScores, archetype: ArchetypeInfo): string {
+  if (archetype.id === 'energy_addict' && dimensions.mood < 0.4) {
+    return 'You use music as armour. High energy, heavy heart.'
+  }
+  return ARCHETYPE_SUMMARIES[archetype.id]
 }
 
 // ─── Main Entry Point ─────────────────────────────────────────────────────────

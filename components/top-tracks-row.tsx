@@ -1,4 +1,4 @@
-import type { SpotifyTrack } from '@/lib/spotify/api'
+import type { SpotifyTrack } from '@/lib/spotify/types'
 import { Music } from 'lucide-react'
 
 interface TopTracksRowProps {

@@ -6,7 +6,7 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
-} from 'recharts'
+} from '@/components/recharts-wrapper'
 
 interface GenreChartProps {
   genreBreakdown: Array<{ name: string; count: number }>

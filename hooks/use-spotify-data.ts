@@ -5,43 +5,38 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase/client'
 import { getSpotifyToken, clearToken } from '@/lib/spotify/auth'
-import {
-  fetchTopTracks,
-  fetchTopArtists,
-  fetchUserProfile,
-  fetchAudioFeatures,
-  deduplicateTracksByID,
-} from '@/lib/spotify/api'
-import { TokenExpiredError } from '@/lib/spotify/errors'
+import { fetchAllSpotifyData, TokenExpiredError } from '@/lib/spotify/api'
 import { analyzePersonality } from '@/lib/spotify/personality'
 import type { PersonalityResult } from '@/lib/spotify/personality'
 
-interface UseSpotifyDataResult {
-  data: PersonalityResult | null
+export interface SpotifyDataState {
+  result: PersonalityResult | null
   isLoading: boolean
   error: string | null
-  retry: () => void
+  isEmpty: boolean
 }
 
-export function useSpotifyData(): UseSpotifyDataResult {
+export function useSpotifyData(): SpotifyDataState & { retry: () => void } {
   const router = useRouter()
   const { user } = useAuth()
 
-  const [data, setData] = useState<PersonalityResult | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [state, setState] = useState<SpotifyDataState>({
+    result: null,
+    isLoading: true,
+    error: null,
+    isEmpty: false,
+  })
   const [attempt, setAttempt] = useState(0)
 
   const retry = useCallback(() => {
-    setError(null)
-    setIsLoading(true)
+    setState({ result: null, isLoading: true, error: null, isEmpty: false })
     setAttempt((n) => n + 1)
   }, [])
 
   useEffect(() => {
     let cancelled = false
 
-    async function load() {
+    async function load(): Promise<void> {
       const token = getSpotifyToken()
 
       if (!token) {
@@ -50,29 +45,22 @@ export function useSpotifyData(): UseSpotifyDataResult {
       }
 
       try {
-        // Parallel fetch — NFR-01.3
-        const [shortTracks, mediumTracks, longTracks, artists, spotifyUser] = await Promise.all([
-          fetchTopTracks(token, 'short_term'),
-          fetchTopTracks(token, 'medium_term'),
-          fetchTopTracks(token, 'long_term'),
-          fetchTopArtists(token),
-          fetchUserProfile(token),
-        ])
+        const { tracks, artists, audioFeatures, user: spotifyUser } =
+          await fetchAllSpotifyData(token)
 
         if (cancelled) return
 
-        const uniqueTracks = deduplicateTracksByID([shortTracks, mediumTracks, longTracks])
-        const trackIds = uniqueTracks.map((t) => t.id)
+        if (tracks.length === 0 || audioFeatures.length === 0) {
+          setState({ result: null, isLoading: false, error: null, isEmpty: true })
+          return
+        }
 
-        const features = await fetchAudioFeatures(token, trackIds)
+        const result = analyzePersonality(audioFeatures, tracks, artists, spotifyUser)
 
         if (cancelled) return
 
-        const result = analyzePersonality(features, uniqueTracks, artists, spotifyUser)
+        setState({ result, isLoading: false, error: null, isEmpty: false })
 
-        setData(result)
-
-        // Persist for authenticated users — FR-06.1 / FR-06.2
         if (user) {
           await supabase.from('spotify_profiles').upsert(
             {
@@ -97,11 +85,12 @@ export function useSpotifyData(): UseSpotifyDataResult {
           return
         }
 
-        setError(
-          err instanceof Error ? err.message : 'Something went wrong. Please try again.',
-        )
-      } finally {
-        if (!cancelled) setIsLoading(false)
+        setState({
+          result: null,
+          isLoading: false,
+          error: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+          isEmpty: false,
+        })
       }
     }
 
@@ -112,5 +101,5 @@ export function useSpotifyData(): UseSpotifyDataResult {
     }
   }, [attempt, router, user])
 
-  return { data, isLoading, error, retry }
+  return { ...state, retry }
 }
