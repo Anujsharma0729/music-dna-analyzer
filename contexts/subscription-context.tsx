@@ -124,6 +124,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [refresh])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSubscription()
 
     // Listen for auth changes

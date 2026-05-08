@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 
 export default function UpgradePage() {
-  const { isPro, tier, upgradeToPro, downgradeToFree, isLoading: subLoading } = useSubscription()
+  const { isPro, upgradeToPro, downgradeToFree, isLoading: subLoading } = useSubscription()
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -61,7 +61,7 @@ export default function UpgradePage() {
                 <CheckCircle className="w-16 h-16 text-primary" />
               </div>
               <h1 className="text-5xl font-light tracking-tight mb-4">
-                You're a <span className="font-semibold text-primary">Pro</span> member
+                You&apos;re a <span className="font-semibold text-primary">Pro</span> member
               </h1>
               <p className="text-xl text-muted-foreground font-light">
                 Thank you for upgrading! You have access to all Pro features.

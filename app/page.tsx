@@ -2,6 +2,7 @@
 
 import { Navigation } from '@/components/navigation'
 import { startSpotifyOAuth } from '@/lib/spotify/auth'
+import { toast } from 'sonner'
 
 const PREVIEW_ARCHETYPES = [
   {
@@ -27,6 +28,14 @@ const PREVIEW_ARCHETYPES = [
   },
 ]
 
+function handleConnectSpotify() {
+  if (!process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID) {
+    toast.error('Spotify Client ID not configured')
+    return
+  }
+  void startSpotifyOAuth()
+}
+
 export default function HomePage() {
   return (
     <div style={{ background: '#0a0a0a' }} className="min-h-screen text-white">
@@ -34,7 +43,7 @@ export default function HomePage() {
 
       {/* ── Hero ── */}
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
-        {/* Animated radial background */}
+        {/* Radial background accent */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
@@ -49,8 +58,8 @@ export default function HomePage() {
             🎵 Music Personality Analyzer
           </div>
 
-          {/* Headline */}
-          <h1 className="text-6xl font-black tracking-tight leading-tight mb-6">
+          {/* Headline — responsive size */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6">
             <span className="block text-white">Discover Your</span>
             <span className="block">
               Music{' '}
@@ -64,10 +73,10 @@ export default function HomePage() {
             Your archetype, mood spectrum, genre fingerprint — and a card worth sharing.
           </p>
 
-          {/* CTA */}
+          {/* CTA — full-width on mobile, auto on sm+ */}
           <button
-            onClick={() => { void startSpotifyOAuth() }}
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-full text-lg font-bold text-black transition-all duration-200 hover:scale-105 active:scale-95"
+            onClick={handleConnectSpotify}
+            className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 rounded-full text-lg font-bold text-black transition-all duration-200 hover:scale-105 active:scale-95"
             style={{ background: '#1DB954' }}
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
@@ -84,7 +93,8 @@ export default function HomePage() {
           Which one are you?
         </p>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {/* 1 col → 2 col (sm) → 3 col (lg) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {PREVIEW_ARCHETYPES.map((a) => (
             <div
               key={a.name}

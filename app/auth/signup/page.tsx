@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { Suspense } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
@@ -8,31 +9,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navigation } from "@/components/navigation"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 
-export default function SignUpPage() {
+function SignUpForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [repeatPassword, setRepeatPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const [returnUrl, setReturnUrl] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const returnUrl = searchParams.get('returnUrl')
   const { user, isLoading: authLoading } = useAuth()
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      setReturnUrl(params.get('returnUrl'))
-    }
-  }, [])
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && user) {
-      const destination = returnUrl || "/"
-      router.push(destination)
+      router.push(returnUrl ?? "/")
     }
   }, [user, authLoading, returnUrl, router])
 
@@ -63,12 +57,7 @@ export default function SignUpPage() {
       })
       if (error) throw error
 
-      // Redirect to returnUrl if provided, otherwise to home
-      if (returnUrl) {
-        router.push(returnUrl)
-      } else {
-        router.push("/")
-      }
+      router.push(returnUrl ?? "/")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -148,5 +137,13 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpForm />
+    </Suspense>
   )
 }

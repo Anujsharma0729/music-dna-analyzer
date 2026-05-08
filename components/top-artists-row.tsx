@@ -35,6 +35,7 @@ export function TopArtistsRow({ artists }: TopArtistsRowProps) {
                   src={artist.images[0].url}
                   alt={artist.name}
                   className="w-9 h-9 object-cover"
+                  loading="lazy"
                 />
               ) : (
                 <Mic2 size={16} style={{ color: '#444' }} />

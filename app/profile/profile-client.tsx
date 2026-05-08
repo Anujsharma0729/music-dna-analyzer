@@ -28,7 +28,7 @@ interface ProfileClientProps {
 }
 
 export function ProfileClient({ user }: ProfileClientProps) {
-  const { isPro, tier, downgradeToFree, refresh } = useSubscription()
+  const { isPro, downgradeToFree } = useSubscription()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDowngrading, setIsDowngrading] = useState(false)
@@ -131,7 +131,7 @@ export function ProfileClient({ user }: ProfileClientProps) {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Downgrade to Free?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        You'll lose access to Pro features immediately. You can upgrade again anytime.
+                        You&apos;ll lose access to Pro features immediately. You can upgrade again anytime.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -199,7 +199,7 @@ export function ProfileClient({ user }: ProfileClientProps) {
                       <ul className="list-disc list-inside space-y-1 text-sm">
                         <li>Your profile will be permanently deleted</li>
                         <li>Your subscription data will be removed</li>
-                        <li>You won't be able to recover your account</li>
+                        <li>You won&apos;t be able to recover your account</li>
                       </ul>
                       <p className="font-semibold text-destructive pt-2">
                         This action cannot be undone.

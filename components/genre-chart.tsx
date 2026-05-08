@@ -44,6 +44,19 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function GenreChart({ genreBreakdown }: GenreChartProps) {
+  if (genreBreakdown.length === 0) {
+    return (
+      <div
+        className="rounded-2xl p-6 flex items-center justify-center"
+        style={{ background: '#111111', border: '1px solid #222222', minHeight: 300 }}
+      >
+        <p className="text-sm" style={{ color: '#555555' }}>
+          No genre data available
+        </p>
+      </div>
+    )
+  }
+
   const top6 = genreBreakdown.slice(0, 6)
   const otherCount = genreBreakdown.slice(6).reduce((sum, g) => sum + g.count, 0)
 

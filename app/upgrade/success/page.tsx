@@ -42,7 +42,7 @@ export default function UpgradeSuccessPage() {
           <div className="bg-card/50 border border-border rounded-2xl p-8 mb-8 text-left">
             <h3 className="font-medium mb-4 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              What's now unlocked:
+              What&apos;s now unlocked:
             </h3>
             <ul className="space-y-3 text-muted-foreground">
               <li className="flex items-center gap-3">

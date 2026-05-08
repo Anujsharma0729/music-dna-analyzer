@@ -5,6 +5,11 @@ interface TopTracksRowProps {
   tracks: SpotifyTrack[]
 }
 
+function truncateArtists(artists: Array<{ name: string }>): string {
+  const joined = artists.map((a) => a.name).join(', ')
+  return joined.length > 40 ? `${joined.slice(0, 40)}…` : joined
+}
+
 export function TopTracksRow({ tracks }: TopTracksRowProps) {
   return (
     <div
@@ -35,6 +40,7 @@ export function TopTracksRow({ tracks }: TopTracksRowProps) {
                   src={track.album.images[0].url}
                   alt={track.album.name}
                   className="w-9 h-9 rounded-lg object-cover"
+                  loading="lazy"
                 />
               ) : (
                 <Music size={16} style={{ color: '#444' }} />
@@ -44,7 +50,7 @@ export function TopTracksRow({ tracks }: TopTracksRowProps) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate text-white">{track.name}</p>
               <p className="text-xs truncate" style={{ color: '#666' }}>
-                {track.artists.map((a) => a.name).join(', ')}
+                {truncateArtists(track.artists)}
               </p>
             </div>
           </li>

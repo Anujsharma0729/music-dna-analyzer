@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { useSpotifyData } from '@/hooks/use-spotify-data'
 import { ResultsSkeleton } from '@/components/results-skeleton'
 import { ErrorState } from '@/components/error-state'
@@ -10,11 +11,13 @@ import { GenreChart } from '@/components/genre-chart'
 import { MoodRadar } from '@/components/mood-radar'
 import { TopTracksRow } from '@/components/top-tracks-row'
 import { TopArtistsRow } from '@/components/top-artists-row'
+import { PersonalityCard } from '@/components/personality-card'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function ResultsPage() {
   const { result, isLoading, error, isEmpty, retry } = useSpotifyData()
   const { user } = useAuth()
+  const cardRef = useRef<HTMLDivElement>(null)
 
   if (isLoading) return <ResultsSkeleton />
   if (error) return <ErrorState message={error} onRetry={retry} />
@@ -31,7 +34,7 @@ export default function ResultsPage() {
           listeningSummary={result.listeningSummary}
         />
 
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <GenreChart genreBreakdown={result.genreBreakdown} />
           <MoodRadar dimensions={result.dimensions} />
         </div>
@@ -40,7 +43,7 @@ export default function ResultsPage() {
           <AlterEgoCard alterEgo={result.alterEgo} />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <TopTracksRow tracks={result.topTracks} />
           <TopArtistsRow artists={result.topArtists} />
         </div>
@@ -74,16 +77,9 @@ export default function ResultsPage() {
             Your Shareable Card
           </p>
 
-          {/* Placeholder — PersonalityCard wired in next prompt */}
-          <div
-            className="rounded-2xl mx-auto"
-            style={{
-              width: 480,
-              height: 280,
-              background: '#111111',
-              border: '1px solid #222222',
-            }}
-          />
+          <div className="w-full overflow-x-auto flex justify-center">
+            <PersonalityCard result={result} cardRef={cardRef} />
+          </div>
 
         </div>
 
