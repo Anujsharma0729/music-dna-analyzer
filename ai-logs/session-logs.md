@@ -363,4 +363,136 @@ Once the archetype is determined, call `POST /me/playlists` and `POST /playlists
 
 ---
 
+---
+
+## Session 13 — Spotify OAuth Redirect URI Fix
+
+**Date:** 2026-05-13  
+**Duration:** ~10 min
+
+### Problem
+
+User reported `redirect_uri mismatch` error from Spotify when clicking "Connect Spotify". The authorization URL sent `redirect_uri=http://localhost:3000/spotify/callback` but `.env.local` had `NEXT_PUBLIC_SPOTIFY_REDIRECT_URI="http://127.0.0.1:3000"` — missing the `/spotify/callback` path and using the wrong host.
+
+### Fix
+
+Updated `.env.local`:
+```
+NEXT_PUBLIC_SPOTIFY_REDIRECT_URI="http://127.0.0.1:3000/spotify/callback"
+```
+
+Instructed user to register the exact same URI in their Spotify Dashboard. Explained that Spotify requires character-for-character match including path and protocol.
+
+---
+
+## Session 14 — Full UI Overhaul + Brand Rename
+
+**Date:** 2026-05-13  
+**Duration:** ~45 min
+
+### What changed
+
+**Branding:** Renamed "8x Template" → "SoundDNA" across navigation, footer, page metadata. Chose SoundDNA because it's descriptive of the core feature (music personality = DNA), memorable, and clean.
+
+**Navigation (`components/navigation.tsx`):**
+- Custom `SoundDNA` logo with green `Waves` icon from lucide
+- Spotify-green Sign In / Upgrade buttons replacing generic shadcn Button
+- Dark glass-morphism bar matching app theme (`rgba(10,10,10,0.95)` + backdrop-blur)
+
+**Homepage (`app/page.tsx`):**
+- Bigger headline with archetype-color glow text shadow
+- Subtle dot-grid background overlay
+- New "How it works" section — 3 numbered steps
+- Archetype card hover effects with color border glow via `onMouseEnter/Leave`
+- Secondary CTA at bottom of archetype section
+- Trust nudge copy under primary CTA ("No credit card · Read-only Spotify access")
+
+**Auth pages (login, signup, check-email):**
+- Full dark theme (`#0a0a0a`) matching app — previously used generic `bg-background`
+- Card-based form layout with `#111` background and `#1e1e1e` border
+- Green focus ring on inputs via `onFocus/onBlur` handlers
+- Spinner on submit buttons using `Loader2`
+- Real-time password strength indicator on signup
+
+**Auth bug fix (signup):**
+- `supabase.auth.signUp()` returns `{ data: { session } }` — if `session` is null, email confirmation is required
+- Old code always redirected to `returnUrl ?? "/"` regardless of confirmation state
+- Fixed: redirect to `/auth/check-email` when `data.session === null`
+
+---
+
+## Session 15 — Results Page Overhaul
+
+**Date:** 2026-05-13  
+**Duration:** ~40 min
+
+### What changed
+
+**Results page (`app/results/page.tsx`):**
+- Added `<Navigation />` — results page had no nav bar, users were stranded
+- Fixed login URL bug: old code used `?redirect=/results` but the login page reads `?returnUrl=`. Users could never be redirected back to results after signing in
+- Replaced the subtle 1-line "sign in" text with a full `SaveResultsBanner` component — green gradient card with "Sign Up Free" + "Sign In" buttons
+- Added labeled `SectionDivider` components between content areas
+
+**ArchetypeHero:** Color glow backdrop behind the section, dimension bars moved into a dark card with gradient fills, archetype badge pill at top, percentage in archetype color
+
+**AlterEgoCard:** Left color stripe, subtle archetype gradient background
+
+**TopTracksRow / TopArtistsRow:** #1 rank highlighted in green, shows only top 5
+
+**Empty/Error states:** Both now include `<Navigation />`, error state has a proper icon
+
+**ResultsSkeleton:** Added `<Navigation />` + updated to match new layout structure
+
+---
+
+## Session 16 — Spotify Audio Features API Deprecation Fix
+
+**Date:** 2026-05-13  
+**Duration:** ~25 min
+
+### Problem
+
+User had music history but saw "No listening history yet" empty state. Root cause: Spotify **deprecated the `/audio-features` endpoint** for all apps created after November 27, 2024. The endpoint returns `{ audio_features: [null, null, ...] }` — one null per track ID. After null-filtering, result is `[]`. The hook checked `audioFeatures.length === 0` and showed the empty state.
+
+### Three-part fix
+
+**1. `lib/spotify/api.ts`** — Wrapped `fetchAudioFeatures` in try/catch. On 403/404, returns `[]` instead of throwing. This prevents the error state from triggering for a known deprecation.
+
+**2. `hooks/use-spotify-data.ts`** — Changed empty state guard from:
+```ts
+if (tracks.length === 0 || audioFeatures.length === 0)
+```
+to:
+```ts
+if (tracks.length === 0 || artists.length === 0)
+```
+Audio features being empty is no longer a blocker.
+
+**3. `lib/spotify/personality.ts`** — Added `inferFromGenres()` function that maps genre keywords to audio dimension scores. When `features = []`, `computeDimensions()` uses this instead of `mean([])` (which would give all zeros). Genre signals cover 30+ terms (electronic → high energy, classical → high acoustic, etc.) with a neutral 0.5 base so unrecognised genres don't bias the score.
+
+---
+
+## Session 17 — Dev Indicator, OTP Login, README & Cleanup
+
+**Date:** 2026-05-13  
+**Duration:** ~30 min
+
+### What changed
+
+**Next.js "N" dev button:** Added `devIndicators: false` to `next.config.ts` — removes the bottom-left Next.js dev toolbar badge.
+
+**OTP Login (`app/auth/login/page.tsx`):**
+- Added "Password / Email OTP" tab toggle
+- OTP flow: step 1 (email → `supabase.auth.signInWithOtp`) → step 2 (6-digit code input → `supabase.auth.verifyOtp`)
+- OTP input uses `inputMode="numeric"`, strips non-digits, monospace tracking, verify button disabled until 6 chars entered
+- Green confirmation banner shown after code is sent
+- "← Use a different email" back button to restart
+
+**`.gitignore`:** Added `.claude-logs/`, `memory/`, `proxy.ts` — keeps auto-generated Claude Code internals out of the repo.
+
+**README:** Fully rewritten — accurate run instructions (npm not pnpm, correct redirect URI, current env var names), updated project structure reflecting all new files, known limitations section includes the audio features deprecation note.
+
+**`ai-logs/session-logs.md`:** Updated with sessions 13–17 documenting all post-initial-build iterations.
+
 *Log maintained by Claude Code (claude-sonnet-4-6) throughout the build session.*

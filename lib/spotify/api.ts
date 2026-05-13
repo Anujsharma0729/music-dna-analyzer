@@ -58,23 +58,34 @@ export async function fetchAudioFeatures(
   token: string,
   trackIds: string[],
 ): Promise<AudioFeatures[]> {
+  if (trackIds.length === 0) return []
+
   const chunks: string[][] = []
   for (let i = 0; i < trackIds.length; i += 100) {
     chunks.push(trackIds.slice(i, i + 100))
   }
 
-  const results = await Promise.all(
-    chunks.map((chunk) =>
-      spotifyFetch<{ audio_features: Array<AudioFeatures | null> }>(
-        `/audio-features?ids=${chunk.join(',')}`,
-        token,
+  try {
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        spotifyFetch<{ audio_features: Array<AudioFeatures | null> }>(
+          `/audio-features?ids=${chunk.join(',')}`,
+          token,
+        ),
       ),
-    ),
-  )
+    )
 
-  return results
-    .flatMap((r) => r.audio_features)
-    .filter((f): f is AudioFeatures => f !== null)
+    return results
+      .flatMap((r) => r.audio_features)
+      .filter((f): f is AudioFeatures => f !== null)
+  } catch (err) {
+    // Spotify deprecated /audio-features for apps created after Nov 27 2024.
+    // Return empty array so analysis continues using genre/popularity inference.
+    if (err instanceof SpotifyAPIError && (err.status === 403 || err.status === 404)) {
+      return []
+    }
+    throw err
+  }
 }
 
 export function deduplicateTracksByID(trackArrays: SpotifyTrack[][]): SpotifyTrack[] {

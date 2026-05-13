@@ -1,12 +1,27 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { User, Menu, X, Sparkles } from "lucide-react"
+import { User, Menu, X, Waves } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useSubscription } from "@/contexts/subscription-context"
 import { useState } from "react"
+
+function Logo() {
+  return (
+    <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+      <div
+        className="w-8 h-8 rounded-lg flex items-center justify-center"
+        style={{ background: '#1DB954' }}
+      >
+        <Waves className="w-4 h-4 text-black" />
+      </div>
+      <span className="font-bold text-lg tracking-tight text-white">
+        Sound<span style={{ color: '#1DB954' }}>DNA</span>
+      </span>
+    </Link>
+  )
+}
 
 export function Navigation() {
   const pathname = usePathname()
@@ -17,47 +32,48 @@ export function Navigation() {
   return (
     <>
       {/* Mobile Navigation */}
-      <nav className="md:hidden border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full">
-        <div className="container mx-auto px-6 py-5">
+      <nav
+        className="md:hidden sticky top-0 z-50 w-full backdrop-blur"
+        style={{ borderBottom: '1px solid #1a1a1a', background: 'rgba(10,10,10,0.95)' }}
+      >
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-semibold">8x Template</span>
-            </Link>
+            <Logo />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2"
+              className="p-2 text-white/70 hover:text-white transition-colors"
+              aria-label="Toggle menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-border/50 px-6 py-4 space-y-4">
+          <div
+            className="px-6 py-4 space-y-3"
+            style={{ borderTop: '1px solid #1a1a1a' }}
+          >
             {!isLoading && (
               <>
                 {user ? (
                   <>
                     <Link
                       href="/profile"
-                      className="block py-2"
+                      className="flex items-center gap-2 py-2 text-white/70 hover:text-white transition-colors"
                       onClick={() => setMobileMenuOpen(false)}
                     >
+                      <User className="w-4 h-4" />
                       Profile
                     </Link>
                     {!isPro && (
                       <Link
                         href="/upgrade"
                         onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full text-center py-2.5 rounded-lg font-semibold text-sm"
+                        style={{ background: '#1DB954', color: '#000' }}
                       >
-                        <Button className="w-full">Upgrade to Pro</Button>
+                        Upgrade to Pro
                       </Link>
                     )}
                   </>
@@ -65,7 +81,7 @@ export function Navigation() {
                   <>
                     <Link
                       href="/upgrade"
-                      className="block py-2"
+                      className="block py-2 text-white/70 hover:text-white transition-colors"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Pricing
@@ -73,8 +89,10 @@ export function Navigation() {
                     <Link
                       href="/auth/login"
                       onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full text-center py-2.5 rounded-lg font-semibold text-sm"
+                      style={{ background: '#1DB954', color: '#000' }}
                     >
-                      <Button className="w-full">Sign In</Button>
+                      Sign In
                     </Link>
                   </>
                 )}
@@ -85,18 +103,13 @@ export function Navigation() {
       </nav>
 
       {/* Desktop Navigation */}
-      <nav className="hidden md:block border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-5">
+      <nav
+        className="hidden md:block sticky top-0 z-50 backdrop-blur"
+        style={{ borderBottom: '1px solid #1a1a1a', background: 'rgba(10,10,10,0.95)' }}
+      >
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-semibold text-lg">8x Template</span>
-            </Link>
+            <Logo />
 
             <div className="flex items-center gap-6">
               {!isLoading && (
@@ -106,30 +119,39 @@ export function Navigation() {
                       <Link
                         href="/profile"
                         className={`transition-colors ${
-                          pathname === "/profile" ? "text-primary" : "text-foreground/80 hover:text-foreground"
+                          pathname === '/profile'
+                            ? 'text-[#1DB954]'
+                            : 'text-white/60 hover:text-white'
                         }`}
                         title="Profile"
                       >
                         <User className="w-5 h-5" />
                       </Link>
                       {!isPro && (
-                        <Link href="/upgrade">
-                          <Button variant="outline" size="sm" className="text-sm bg-transparent">
-                            Upgrade
-                          </Button>
+                        <Link
+                          href="/upgrade"
+                          className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                          style={{ background: '#1DB954', color: '#000' }}
+                        >
+                          Upgrade to Pro
                         </Link>
                       )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <Link href="/upgrade">
-                        <Button variant="ghost" size="sm" className="text-sm">
-                          Pricing
-                        </Button>
+                      <Link
+                        href="/upgrade"
+                        className="text-sm text-white/60 hover:text-white transition-colors"
+                      >
+                        Pricing
                       </Link>
-                      <Button size="sm" className="text-sm" asChild>
-                        <Link href="/auth/login">Sign In</Link>
-                      </Button>
+                      <Link
+                        href="/auth/login"
+                        className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                        style={{ background: '#1DB954', color: '#000' }}
+                      >
+                        Sign In
+                      </Link>
                     </div>
                   )}
                 </>

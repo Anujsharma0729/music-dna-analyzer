@@ -50,7 +50,7 @@ export function useSpotifyData(): SpotifyDataState & { retry: () => void } {
 
         if (cancelled) return
 
-        if (tracks.length === 0 || audioFeatures.length === 0) {
+        if (tracks.length === 0 || artists.length === 0) {
           setState({ result: null, isLoading: false, error: null, isEmpty: true })
           return
         }

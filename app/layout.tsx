@@ -10,11 +10,11 @@ import "./globals.css"
 const geist = Geist({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "8x Hiring Template",
-  description: "A SaaS starter template for frontend engineering assessments.",
+  title: "SoundDNA — Discover Your Music Personality",
+  description: "Connect Spotify and find out what your listening habits say about you. Your archetype, mood spectrum, genre fingerprint — and a card worth sharing.",
   icons: {
     icon: [
-      { url: "/favicon-32x32.png" },
+      { url: "/favicon-32x32.png", sizes: "32x32" },
       { url: "/favicon-16x16.png", sizes: "16x16" },
     ],
     apple: "/apple-touch-icon.png",

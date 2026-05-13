@@ -18,72 +18,94 @@ const DIMENSION_LABELS: Array<{ key: keyof DimensionScores; label: string }> = [
 
 export function ArchetypeHero({ archetype, dimensions, listeningSummary }: ArchetypeHeroProps) {
   return (
-    <section className="w-full text-center py-16" style={{ background: '#0a0a0a' }}>
-      {/* Emoji with archetype-coloured glow */}
+    <section className="relative w-full text-center pt-16 pb-14 overflow-hidden">
+      {/* Color glow backdrop */}
       <div
+        className="pointer-events-none absolute inset-0"
         style={{
-          filter: `drop-shadow(0 0 40px ${archetype.color}50)`,
-          display: 'block',
-          marginBottom: '1rem',
+          background: `radial-gradient(ellipse 60% 50% at 50% 0%, ${archetype.color}14 0%, transparent 70%)`,
         }}
-      >
-        <span
-          className="block leading-none select-none"
-          style={{ fontSize: 80 }}
+      />
+
+      <div className="relative z-10">
+        {/* Archetype badge */}
+        <div className="flex justify-center mb-6">
+          <span
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest"
+            style={{
+              background: `${archetype.color}15`,
+              border: `1px solid ${archetype.color}30`,
+              color: archetype.color,
+            }}
+          >
+            Your Music Archetype
+          </span>
+        </div>
+
+        {/* Emoji */}
+        <div
+          className="text-[96px] leading-none select-none mb-5"
+          style={{ filter: `drop-shadow(0 0 48px ${archetype.color}60)` }}
         >
           {archetype.emoji}
-        </span>
-      </div>
+        </div>
 
-      <h1
-        className="text-5xl font-black tracking-tight mb-3"
-        style={{ color: archetype.color }}
-      >
-        {archetype.name.toUpperCase()}
-      </h1>
+        {/* Name */}
+        <h1
+          className="text-4xl sm:text-5xl font-black tracking-tight mb-3"
+          style={{ color: archetype.color }}
+        >
+          {archetype.name.toUpperCase()}
+        </h1>
 
-      <p className="text-2xl italic mb-5" style={{ color: '#A0A0A0' }}>
-        &ldquo;{archetype.tagline}&rdquo;
-      </p>
+        {/* Tagline */}
+        <p className="text-lg sm:text-xl italic mb-5 max-w-lg mx-auto leading-relaxed" style={{ color: '#888' }}>
+          &ldquo;{archetype.tagline}&rdquo;
+        </p>
 
-      <p className="text-base leading-relaxed max-w-2xl mx-auto mb-3" style={{ color: '#666' }}>
-        {archetype.description}
-      </p>
+        {/* Description */}
+        <p className="text-sm leading-relaxed max-w-2xl mx-auto mb-2" style={{ color: '#666' }}>
+          {archetype.description}
+        </p>
 
-      <p className="text-sm leading-relaxed max-w-xl mx-auto mb-10" style={{ color: '#555' }}>
-        {listeningSummary}
-      </p>
+        {/* Listening summary */}
+        <p className="text-xs leading-relaxed max-w-xl mx-auto mb-10" style={{ color: '#444' }}>
+          {listeningSummary}
+        </p>
 
-      {/* Dimension bars */}
-      <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
-        {DIMENSION_LABELS.map(({ key, label }) => {
-          const pct = Math.round(dimensions[key] * 100)
-          return (
-            <div key={key} className="flex items-center gap-3">
-              <span
-                className="text-xs uppercase tracking-widest shrink-0 text-right"
-                style={{ color: '#555', width: 56 }}
-              >
-                {label}
-              </span>
-              <div
-                className="flex-1 rounded-full overflow-hidden"
-                style={{ height: 4, background: '#1a1a1a' }}
-              >
+        {/* Dimension bars */}
+        <div
+          className="flex flex-col gap-3 max-w-sm mx-auto rounded-2xl p-6"
+          style={{ background: '#111', border: '1px solid #1e1e1e' }}
+        >
+          {DIMENSION_LABELS.map(({ key, label }) => {
+            const pct = Math.round(dimensions[key] * 100)
+            return (
+              <div key={key}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#555' }}>
+                    {label}
+                  </span>
+                  <span className="text-xs font-bold tabular-nums" style={{ color: archetype.color }}>
+                    {pct}
+                  </span>
+                </div>
                 <div
-                  className="h-full rounded-full"
-                  style={{ width: `${pct}%`, background: archetype.color, opacity: 0.85 }}
-                />
+                  className="w-full rounded-full overflow-hidden"
+                  style={{ height: 5, background: '#1e1e1e' }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${pct}%`,
+                      background: `linear-gradient(90deg, ${archetype.color}aa, ${archetype.color})`,
+                    }}
+                  />
+                </div>
               </div>
-              <span
-                className="text-xs font-bold shrink-0"
-                style={{ color: '#A0A0A0', width: 28, textAlign: 'right' }}
-              >
-                {pct}
-              </span>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </section>
   )

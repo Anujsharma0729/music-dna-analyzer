@@ -161,6 +161,76 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+// ─── Genre-based dimension inference (fallback when audio features unavailable) ─
+
+const GENRE_SIGNALS: Record<string, Partial<Record<'energy' | 'mood' | 'danceability' | 'acousticness', number>>> = {
+  // High energy
+  electronic:  { energy: 1, acousticness: -1 },
+  edm:         { energy: 1, danceability: 1, acousticness: -1 },
+  house:       { energy: 1, danceability: 1, acousticness: -1 },
+  techno:      { energy: 1, danceability: 1, acousticness: -1 },
+  trance:      { energy: 1, danceability: 1, acousticness: -1 },
+  dubstep:     { energy: 1, acousticness: -1 },
+  hardstyle:   { energy: 1, acousticness: -1 },
+  metal:       { energy: 1, mood: -1, acousticness: -1 },
+  punk:        { energy: 1, mood: -1 },
+  rock:        { energy: 0.5 },
+  'hip hop':   { energy: 0.5, danceability: 1 },
+  rap:         { energy: 0.5, danceability: 0.5 },
+  trap:        { energy: 0.5, danceability: 1 },
+  // High danceability / mood
+  pop:         { danceability: 0.5, mood: 0.5 },
+  dance:       { danceability: 1, mood: 0.5 },
+  disco:       { danceability: 1, mood: 1 },
+  funk:        { danceability: 1, mood: 1 },
+  reggaeton:   { danceability: 1, mood: 0.5 },
+  latin:       { danceability: 1, mood: 0.5 },
+  afrobeats:   { danceability: 1, mood: 1 },
+  dancehall:   { danceability: 1, mood: 0.5 },
+  kpop:        { danceability: 1, mood: 0.5 },
+  // Acoustic / low energy
+  classical:   { acousticness: 1, energy: -1, danceability: -1 },
+  folk:        { acousticness: 1, energy: -0.5 },
+  acoustic:    { acousticness: 1 },
+  country:     { acousticness: 0.5 },
+  blues:       { acousticness: 0.5, mood: -0.5 },
+  jazz:        { acousticness: 0.5, danceability: -0.5 },
+  ambient:     { acousticness: 0.5, energy: -1, danceability: -1 },
+  'new age':   { acousticness: 0.5, energy: -1 },
+  // Mood signals
+  emo:         { mood: -1 },
+  gothic:      { mood: -1 },
+  grunge:      { mood: -0.5, energy: 0.5 },
+  soul:        { mood: 0.5, acousticness: 0.5 },
+  gospel:      { mood: 1 },
+  reggae:      { mood: 0.5, danceability: 0.5 },
+}
+
+function inferFromGenres(
+  genres: string[],
+): Pick<DimensionScores, 'energy' | 'mood' | 'danceability' | 'acousticness'> {
+  const totals = { energy: 0, mood: 0, danceability: 0, acousticness: 0 }
+  const counts = { energy: 0, mood: 0, danceability: 0, acousticness: 0 }
+  const genreStr = genres.join(' ').toLowerCase()
+
+  for (const [term, signals] of Object.entries(GENRE_SIGNALS)) {
+    if (genreStr.includes(term)) {
+      for (const [dim, delta] of Object.entries(signals) as [keyof typeof totals, number][]) {
+        totals[dim] += delta
+        counts[dim] += 1
+      }
+    }
+  }
+
+  const base = 0.5
+  return {
+    energy:       clamp(base + (counts.energy       > 0 ? totals.energy       / counts.energy       : 0) * 0.3, 0, 1),
+    mood:         clamp(base + (counts.mood         > 0 ? totals.mood         / counts.mood         : 0) * 0.3, 0, 1),
+    danceability: clamp(base + (counts.danceability > 0 ? totals.danceability / counts.danceability : 0) * 0.3, 0, 1),
+    acousticness: clamp(base + (counts.acousticness > 0 ? totals.acousticness / counts.acousticness : 0) * 0.3, 0, 1),
+  }
+}
+
 // ─── Dimension Computation (§7.1) ─────────────────────────────────────────────
 
 function computeDimensions(
@@ -172,13 +242,28 @@ function computeDimensions(
   const uniqueGenreCount = new Set(allGenres).size
   const totalGenreTagCount = allGenres.length
 
+  const obscurity = 1 - mean(tracks.map((t) => t.popularity)) / 100
+  const diversity = uniqueGenreCount / Math.max(totalGenreTagCount, 1)
+
+  if (features.length === 0) {
+    // Audio features unavailable (Spotify deprecated endpoint for newer apps).
+    // Infer audio dimensions from genre signals and track popularity.
+    const inferred = inferFromGenres(allGenres)
+    return {
+      ...inferred,
+      obscurity,
+      diversity,
+      moodVariance: 0.3, // neutral fallback — variance unknown without features
+    }
+  }
+
   return {
-    energy: mean(features.map((f) => f.energy)),
-    mood: mean(features.map((f) => f.valence)),
+    energy:       mean(features.map((f) => f.energy)),
+    mood:         mean(features.map((f) => f.valence)),
     danceability: mean(features.map((f) => f.danceability)),
     acousticness: mean(features.map((f) => f.acousticness)),
-    obscurity: 1 - mean(tracks.map((t) => t.popularity)) / 100,
-    diversity: uniqueGenreCount / Math.max(totalGenreTagCount, 1),
+    obscurity,
+    diversity,
     moodVariance: clamp(stdDev(features.map((f) => f.valence)) / 0.5, 0, 1),
   }
 }
