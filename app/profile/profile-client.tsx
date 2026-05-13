@@ -1,30 +1,64 @@
 "use client"
 
 import { Navigation } from "@/components/navigation"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { CreditCard, LogOut, Trash2, Sparkles } from "lucide-react"
+import { LogOut, Trash2, Sparkles, User, Shield, ChevronRight, Waves } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { useSubscription } from "@/contexts/subscription-context"
 import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
 
 interface ProfileClientProps {
-  user: {
-    id: string
-    email: string
-  }
+  user: { id: string; email: string }
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#333' }}>
+      {children}
+    </p>
+  )
+}
+
+function Row({
+  icon, label, sublabel, right, danger = false, onClick, disabled,
+}: {
+  icon: React.ReactNode
+  label: string
+  sublabel?: string
+  right?: React.ReactNode
+  danger?: boolean
+  onClick?: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all disabled:opacity-50"
+      style={{ background: '#111', border: '1px solid #1e1e1e' }}
+      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLElement).style.borderColor = danger ? 'rgba(255,65,54,0.3)' : '#2a2a2a' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#1e1e1e' }}
+    >
+      <div
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: danger ? 'rgba(255,65,54,0.08)' : '#1a1a1a' }}
+      >
+        <span style={{ color: danger ? '#ff4136' : '#555' }}>{icon}</span>
+      </div>
+      <div className="flex-1 text-left">
+        <p className="text-sm font-medium" style={{ color: danger ? '#ff6b6b' : '#ddd' }}>{label}</p>
+        {sublabel && <p className="text-xs mt-0.5" style={{ color: '#444' }}>{sublabel}</p>}
+      </div>
+      {right ?? <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#333' }} />}
+    </button>
+  )
 }
 
 export function ProfileClient({ user }: ProfileClientProps) {
@@ -38,33 +72,18 @@ export function ProfileClient({ user }: ProfileClientProps) {
   const handleLogout = async () => {
     if (isLoggingOut) return
     setIsLoggingOut(true)
-
-    try {
-      await fetch("/api/auth/signout", { method: "POST" })
-    } catch (error) {
-      console.error("Logout error:", error)
-    }
-
+    try { await fetch("/api/auth/signout", { method: "POST" }) } catch {}
     window.location.href = "/"
   }
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true)
-
     try {
-      const response = await fetch("/api/account/delete", {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to delete account")
-      }
-
+      const res = await fetch("/api/account/delete", { method: "POST" })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error) }
       setShowDeleteDialog(false)
       window.location.href = "/"
-    } catch (error) {
-      console.error("Delete account error:", error)
+    } catch {
       toast.error("Failed to delete account. Please try again.")
       setIsDeleting(false)
       setShowDeleteDialog(false)
@@ -73,13 +92,11 @@ export function ProfileClient({ user }: ProfileClientProps) {
 
   const handleDowngrade = async () => {
     setIsDowngrading(true)
-
     try {
       await downgradeToFree()
       setShowDowngradeDialog(false)
       toast.success("You've been downgraded to the Free plan.")
-    } catch (error) {
-      console.error("Downgrade error:", error)
+    } catch {
       toast.error("Failed to downgrade. Please try again.")
     } finally {
       setIsDowngrading(false)
@@ -87,143 +104,182 @@ export function ProfileClient({ user }: ProfileClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ background: '#0a0a0a' }}>
       <Navigation />
 
-      <div className="container mx-auto px-6 py-12">
-        <div className="max-w-2xl mx-auto space-y-8">
-          {/* Profile Header */}
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Your Profile</h1>
-            <p className="text-muted-foreground">{user.email}</p>
-          </div>
+      <div className="container mx-auto px-4 sm:px-6 py-12 max-w-lg">
 
-          {/* Subscription Management */}
-          <Card className="bg-card border-border/50 p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <CreditCard className="w-5 h-5 text-primary" />
-              <h2 className="text-2xl font-semibold">Subscription</h2>
+        {/* Avatar + email */}
+        <div className="flex items-center gap-4 mb-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+            style={{ background: '#111', border: '1px solid #1e1e1e' }}
+          >
+            <User className="w-6 h-6" style={{ color: '#444' }} />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-white">My Account</p>
+            <p className="text-sm" style={{ color: '#555' }}>{user.email}</p>
+          </div>
+        </div>
+
+        {/* Plan card */}
+        <div className="mb-8">
+          <SectionLabel>Subscription</SectionLabel>
+          <div
+            className="rounded-2xl p-5"
+            style={{
+              background: isPro
+                ? 'linear-gradient(135deg, rgba(29,185,84,0.08) 0%, rgba(29,185,84,0.03) 100%)'
+                : '#111',
+              border: isPro ? '1px solid rgba(29,185,84,0.25)' : '1px solid #1e1e1e',
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{ background: isPro ? 'rgba(29,185,84,0.12)' : '#1a1a1a' }}
+                >
+                  {isPro
+                    ? <Sparkles className="w-4 h-4" style={{ color: '#1DB954' }} />
+                    : <Waves className="w-4 h-4" style={{ color: '#555' }} />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{isPro ? 'Pro Plan' : 'Free Plan'}</p>
+                  <p className="text-xs" style={{ color: isPro ? '#1DB954' : '#444' }}>
+                    {isPro ? 'All features unlocked' : 'Basic access'}
+                  </p>
+                </div>
+              </div>
+              <span
+                className="text-xs px-2.5 py-1 rounded-full font-bold"
+                style={isPro
+                  ? { background: 'rgba(29,185,84,0.12)', color: '#1DB954', border: '1px solid rgba(29,185,84,0.2)' }
+                  : { background: '#1a1a1a', color: '#444', border: '1px solid #2a2a2a' }}
+              >
+                {isPro ? 'Active' : 'Free'}
+              </span>
             </div>
 
             {isPro ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-4 border-b border-border/50">
-                  <div>
-                    <p className="font-medium">Current Plan</p>
-                    <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      Pro Plan
-                    </p>
+              <div className="space-y-1.5 pt-3" style={{ borderTop: '1px solid rgba(29,185,84,0.1)' }}>
+                {['Unlimited analyses', 'Priority support', 'Advanced analytics'].map((f) => (
+                  <div key={f} className="flex items-center gap-2 text-xs" style={{ color: '#666' }}>
+                    <span style={{ color: '#1DB954' }}>✓</span> {f}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <p className="text-sm font-medium text-green-500">Active</p>
-                  </div>
-                </div>
-
+                ))}
                 <AlertDialog open={showDowngradeDialog} onOpenChange={setShowDowngradeDialog}>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-muted-foreground" disabled={isDowngrading}>
-                      Downgrade to Free
-                    </Button>
+                    <button className="mt-3 text-xs transition-colors hover:opacity-80" style={{ color: '#555' }}>
+                      Downgrade to free →
+                    </button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent style={{ background: '#111', border: '1px solid #222' }}>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Downgrade to Free?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        You&apos;ll lose access to Pro features immediately. You can upgrade again anytime.
+                      <AlertDialogTitle className="text-white">Downgrade to Free?</AlertDialogTitle>
+                      <AlertDialogDescription style={{ color: '#666' }}>
+                        You&apos;ll lose Pro features immediately. You can upgrade again anytime.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel disabled={isDowngrading}>Keep Pro</AlertDialogCancel>
+                      <AlertDialogCancel style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#aaa' }}>
+                        Keep Pro
+                      </AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={(e) => {
-                          e.preventDefault()
-                          handleDowngrade()
-                        }}
+                        onClick={(e) => { e.preventDefault(); handleDowngrade() }}
                         disabled={isDowngrading}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        style={{ background: '#333', color: '#fff' }}
                       >
-                        {isDowngrading ? "Downgrading..." : "Confirm Downgrade"}
+                        {isDowngrading ? 'Downgrading…' : 'Confirm'}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-4 border-b border-border/50">
-                  <div>
-                    <p className="font-medium">Current Plan</p>
-                    <p className="text-sm text-muted-foreground mt-1">Free</p>
-                  </div>
-                  <Link href="/upgrade">
-                    <Button variant="outline">Upgrade to Pro</Button>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Account Actions */}
-          <Card className="bg-card border-border/50 p-8">
-            <h2 className="text-2xl font-semibold mb-6">Account Actions</h2>
-
-            <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full justify-start text-foreground bg-transparent"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
+              <Link
+                href="/upgrade"
+                className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-black transition-all hover:opacity-90"
+                style={{ background: '#1DB954' }}
               >
-                <LogOut className="w-4 h-4 mr-3" />
-                {isLoggingOut ? "Signing out..." : "Sign Out"}
-              </Button>
-
-              <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 bg-transparent"
-                    disabled={isDeleting}
-                  >
-                    <Trash2 className="w-4 h-4 mr-3" />
-                    Delete Account
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Account?</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-2">
-                      <p>This action is permanent and cannot be undone.</p>
-                      <ul className="list-disc list-inside space-y-1 text-sm">
-                        <li>Your profile will be permanently deleted</li>
-                        <li>Your subscription data will be removed</li>
-                        <li>You won&apos;t be able to recover your account</li>
-                      </ul>
-                      <p className="font-semibold text-destructive pt-2">
-                        This action cannot be undone.
-                      </p>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>Keep Account</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={(e) => {
-                        e.preventDefault()
-                        handleDeleteAccount()
-                      }}
-                      disabled={isDeleting}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {isDeleting ? "Deleting..." : "Delete Account"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </Card>
+                <Sparkles className="w-4 h-4" />
+                Upgrade to Pro
+              </Link>
+            )}
+          </div>
         </div>
+
+        {/* Quick actions */}
+        <div className="mb-8">
+          <SectionLabel>Music</SectionLabel>
+          <div className="space-y-2">
+            <Link href="/results/demo" className="block">
+              <Row
+                icon={<Sparkles className="w-4 h-4" />}
+                label="View Sample Analysis"
+                sublabel="See a demo result for a power listener"
+              />
+            </Link>
+          </div>
+        </div>
+
+        {/* Account actions */}
+        <div>
+          <SectionLabel>Account</SectionLabel>
+          <div className="space-y-2">
+            <Row
+              icon={<Shield className="w-4 h-4" />}
+              label="Privacy Policy"
+              sublabel="How we handle your data"
+              onClick={() => window.open('/privacy', '_blank')}
+            />
+
+            <Row
+              icon={isLoggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              label={isLoggingOut ? 'Signing out…' : 'Sign Out'}
+              sublabel="You'll need to reconnect Spotify"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              right={<span />}
+            />
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogTrigger asChild>
+                <div>
+                  <Row
+                    icon={<Trash2 className="w-4 h-4" />}
+                    label="Delete Account"
+                    sublabel="Permanently remove all your data"
+                    danger
+                    right={<span />}
+                  />
+                </div>
+              </AlertDialogTrigger>
+              <AlertDialogContent style={{ background: '#111', border: '1px solid #222' }}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-white">Delete Account?</AlertDialogTitle>
+                  <AlertDialogDescription style={{ color: '#666' }}>
+                    This is permanent. Your profile, subscription data, and saved analyses will be gone forever.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#aaa' }}>
+                    Keep Account
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => { e.preventDefault(); handleDeleteAccount() }}
+                    disabled={isDeleting}
+                    style={{ background: '#ff4136', color: '#fff' }}
+                  >
+                    {isDeleting ? 'Deleting…' : 'Delete Forever'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+
       </div>
     </div>
   )

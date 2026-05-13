@@ -495,4 +495,42 @@ Audio features being empty is no longer a blocker.
 
 **`ai-logs/session-logs.md`:** Updated with sessions 13–17 documenting all post-initial-build iterations.
 
+---
+
+## Session 18 — Demo Page, Empty State, Additional Screen Polish
+
+**Date:** 2026-05-14
+**Duration:** ~50 min
+
+### Problem
+
+Accounts with no Spotify listening history hit a dead end — the empty state offered no way to understand what the product actually does. Judges and new users had no preview of the output before committing to connecting Spotify.
+
+### What I built
+
+**`lib/spotify/demo-data.ts`** — complete static `PersonalityResult` modelling a hypothetical power listener: 2 years on Spotify, ~2 hrs/day, 14,600+ hours total. Chose 🎭 Mood Chameleon archetype (high diversity: 0.88, high mood variance: 0.79 — statistically correct for someone who has explored music deeply over 2 years). Used real artist names (The Weeknd, Kendrick Lamar, Dua Lipa, Billie Eilish, Tyler The Creator) and realistic genre distribution across 10 genres.
+
+**`app/results/demo/page.tsx`** — full results page rendering against demo data using every existing component (ArchetypeHero, GenreChart, MoodRadar, AlterEgoCard, TopTracksRow, TopArtistsRow, PersonalityCard). Added:
+- Sticky `DemoBanner` at top with "Demo mode" label + "Analyse my Spotify" CTA
+- `DemoProfile` chip showing listener profile details
+- Full `ConnectCTA` at bottom nudging users to connect their account
+- Working Download + Share buttons on the personality card
+
+**`components/empty-state.tsx`** — redesigned as two cards:
+- Main card: clearer explanation of why data is missing + "What counts" checklist (30s plays, multiple days)
+- Demo card: green gradient card with "Curious what it looks like?" + animated arrow → navigates to `/results/demo`
+
+**UI polish pass (profile, pricing, 404, upgrade success):**
+
+All four pages were on the generic default theme (`bg-background`, shadcn Button). Rewrote to match dark theme:
+
+- **Profile**: Avatar + email header; plan card with conditional green gradient for Pro; row-based account actions with icon, label, sublabel, hover border; proper confirm dialogs
+- **Pricing**: Dark cards, recommended badge, Free vs Pro feature lists with icon differentiation (Zap/Shield for Pro features), no real payment copy
+- **404**: Hollow outlined "404" text with music note overlay, music-themed copy ("This track doesn't exist"), link to demo
+- **Upgrade success**: Custom CSS confetti on mount (avoids the `confetti` package that was likely broken), unlocked features list, dual CTA
+
+### Why this matters for judging
+
+The demo page + empty state gives judges a complete picture of the product even if they don't have Spotify listening history, which is the most likely scenario for a quick evaluation session.
+
 *Log maintained by Claude Code (claude-sonnet-4-6) throughout the build session.*
