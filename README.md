@@ -2,7 +2,7 @@
 
 A Spotify Wrapped-style music personality analyzer. Connect your Spotify account and discover your listening archetype, mood spectrum, and genre fingerprint — then download a shareable card.
 
-**Built for the 8x Engineer contest · Deadline: May 17, 2026**
+
 
 ---
 
